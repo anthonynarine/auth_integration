@@ -1,4 +1,5 @@
 # 🔐 Auth Integration Package for Django (auth_integration)
+# Building Centralized Authentication with Token Introspection
 
 This private package allows Django backends like **Lumen** to securely authenticate users using a centralized **Auth API**. It verifies JWTs, fetches user claims from the `/api/me/` endpoint, and integrates with Django REST Framework’s authentication and permission system.
 
