@@ -64,7 +64,8 @@ This private package allows Django backends like **Lumen** to securely authentic
 ### Option 1: Install via GitHub (recommended for private use)
 
 ```bash
-pip install git+https://github.com/anthonynarine/auth_integration.git@main
+pip install git+https://<your-personal-access-token>@github.com/anthonynarine/auth_integration.git
+
 ```
 
 ### Option 2: Install locally during development
