@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auth_integration"
+version = "0.1.0"
+description = "Reusable authentication and permissions package for Django projects using an external Auth API (Gait)"
+authors = [
+    { name = "Anthony Narine", email = "you@example.com" }
+]
+dependencies = [
+    "requests >=2.31.0",
+    "python-decouple >=3.6",
+    "PyJWT >=2.10.1"
+]
+
+[tool.setuptools]
+packages = ["auth_integration"]

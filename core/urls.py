@@ -16,7 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from .views import WhoAmIView, AdminOnlyView
 
 urlpatterns = [
+    path("whoami/", WhoAmIView.as_view(), name="whoami"), # de gal dem suga
     path("admin/", admin.site.urls),
 ]

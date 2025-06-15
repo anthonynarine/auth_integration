@@ -1,5 +1,6 @@
-# 🔐 Auth Integration Package for Django (auth_integration)
-# Building Centralized Authentication with Token Introspection
+# 🔐 Auth Integration Package for Django (`auth_integration`)
+
+## Building Centralized Authentication with Token Introspection
 
 This private package allows Django backends like **Lumen** to securely authenticate users using a centralized **Auth API**. It verifies JWTs, fetches user claims from the `/api/me/` endpoint, and integrates with Django REST Framework’s authentication and permission system.
 
@@ -30,7 +31,7 @@ This private package allows Django backends like **Lumen** to securely authentic
     v
 [ Lumen (Django Backend) ]
     |
-    | 3. Calls auth_integration.AuthAPITokenAuthentication
+    | 3. Calls auth_integration.ExternalJWTAuthentication
     | 4. Makes request to:
     |    GET https://auth.example.com/api/me/
     |    with same Authorization header
@@ -54,94 +55,114 @@ This private package allows Django backends like **Lumen** to securely authentic
     |
     v
 [ View executes securely ]
-📦 Installation
-Option 1: Install via Git (recommended for private use)
-bash
-Copy
-Edit
-pip install git+https://github.com/YOUR_USERNAME/auth_integration.git@main
-Option 2: Install locally (during development)
-bash
-Copy
-Edit
+```
+
+---
+
+## 📦 Installation
+
+### Option 1: Install via GitHub (recommended for private use)
+
+```bash
+pip install git+https://github.com/anthonynarine/auth_integration.git@main
+```
+
+### Option 2: Install locally during development
+
+```bash
 pip install -e /path/to/auth_integration
-⚙️ Configuration in Django (Lumen)
-Step 1: Add to INSTALLED_APPS if needed (optional for packaging)
-python
-Copy
-Edit
+```
+
+---
+
+## ⚙️ Configuration in Django (Lumen)
+
+### Step 1: (Optional) Add to `INSTALLED_APPS` if packaging requires it
+
+```python
 INSTALLED_APPS = [
     ...
     'auth_integration',
 ]
-Step 2: Configure REST Framework
-python
-Copy
-Edit
+```
+
+### Step 2: Configure Django REST Framework
+
+```python
 # settings.py
 
-AUTH_API_URL = "https://auth.example.com"
+AUTH_API_URL = "https://auth.example.com/api"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "auth_integration.authentication.AuthAPITokenAuthentication",
-    ],
+        "auth_integration.authentication.ExternalJWTAuthentication",
+    ]
 }
-🔐 Usage in Views
-Add Role-Based Permissions
-python
-Copy
-Edit
+```
+
+---
+
+## 🔐 Usage in Views
+
+### Add Role-Based Permissions
+
+```python
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from auth_integration.permissions import HasRole
 
 class TechOnlyView(APIView):
-    permission_classes = [HasRole("rvt")]
+    permission_classes = [HasRole("technologist")]
 
     def get(self, request):
         return Response({"message": f"Hello, {request.user_claims['email']}!"})
-🛠 Authentication Class
-AuthAPITokenAuthentication
-Extracts JWT from Authorization header
+```
 
-Makes a secure HTTP request to your Auth API’s /api/me/
+---
 
-Validates the token and returns user info
+## 🛠 Authentication Class
 
-Populates request.user_claims with:
+### `ExternalJWTAuthentication`
 
-json
-Copy
-Edit
+- Extracts JWT from the `Authorization` header
+- Sends a secure request to your Auth API’s `/api/me/` endpoint
+- Validates the token and returns user info
+- Populates `request.user_claims` with:
+
+```json
 {
   "id": "user-123",
   "email": "tech@example.com",
-  "role": "rvt"
+  "role": "technologist"
 }
-📘 /api/me/ Endpoint (Auth API)
-This must be available at your Auth API:
+```
 
-http
-Copy
-Edit
+---
+
+## 📘 Required `/api/me/` Endpoint (Auth API)
+
+```http
 GET /api/me/
 Authorization: Bearer <token>
-Response if valid:
-json
-Copy
-Edit
+```
+
+### Successful Response (200 OK)
+
+```json
 {
   "id": "user-123",
   "email": "user@example.com",
   "role": "admin"
 }
-If token is expired or invalid, return 401 Unauthorized.
+```
 
-🔄 Diagram (ASCII-Style Architecture)
-plaintext
-Copy
-Edit
+### Invalid Token → 401 Unauthorized
+
+---
+
+## 🔄 ASCII Architecture Diagram
+
+```plaintext
 +-------------------+                         +--------------------+
 |   React Frontend  |                         |     Auth API       |
 |-------------------|                         |--------------------|
@@ -157,38 +178,33 @@ Edit
 |       Lumen Backend         |-------------->|   /api/me/         |
 |  (Django + auth_integration)|              |  (Validates JWT)   |
 |-----------------------------|              +--------------------+
-| - AuthAPITokenAuthentication|
+| - ExternalJWTAuthentication |
 | - request.user_claims       |
-| - HasRole("rvt")            |
+| - HasRole('rvt')            |
 +-----------------------------+
+```
 
+---
 
-✅ Advantages
-🔒 Secure by design: no JWT secrets stored in Lumen
+## ✅ Advantages
 
-🧩 Modular: use in any Django app that needs authentication
+- 🔒 Secure by design: no JWT secrets stored in Lumen
+- 🧩 Modular: use in any Django app that needs authentication
+- 🛠 Maintains a single source of truth for user identity
+- 💡 Easy to test and extend (add caching, logging, etc.)
 
-🛠 Maintains a single source of truth for user identity
+---
 
-💡 Easy to test and extend (add caching, logging, etc.)
+## 🧪 Coming Soon (Optional Features)
 
-🧪 Coming Soon (Optional Features)
-Caching of user claims (Redis or Django cache)
+- Caching of user claims (Redis or Django cache)
+- `CacheUserClaimsMiddleware`
+- Group-based permissions (`HasAnyRole`, `IsAdminOrDoctor`)
+- Audit logging of auth failures
 
-CacheUserClaimsMiddleware
+---
 
-Group-based permissions (HasAnyRole, IsAdminOrDoctor)
+## 👤 Author
 
-Audit logging of auth failures
-
-🧑‍💻 Author
-Built for the Lumen vascular reporting platform and private clinical tools.
-Maintained by Anthony Narine.
-
-
-
-
-
-
-
-
+Built for the **Lumen vascular reporting platform** and private clinical tools.  
+Maintained by **Anthony Narine**.
