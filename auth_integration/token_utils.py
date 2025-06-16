@@ -12,7 +12,9 @@ class UserClaims(TypedDict):
 
 def verify_token(token: str) -> UserClaims:
     """
-    Verifies a JWT access token by calling the external Auth API's `/me/` endpoint.
+    Verifies a JWT access token by calling the external Auth API's `/api/me/` endpoint.
+
+    Expects AUTH_API_URL to be something like: https://your-auth-api.com (no trailing /api)
 
     Args:
         token (str): JWT access token
@@ -29,13 +31,16 @@ def verify_token(token: str) -> UserClaims:
         raise RuntimeError("AUTH_API_URL is not set in environment variables.")
 
     try:
+        url = f"{AUTH_API_URL}/api/me/"
         headers = {"Authorization": f"Bearer {token}"}
-        response = requests.get(f"{AUTH_API_URL}/api/me/", headers=headers, timeout=5)
+
+        print(f"🔍 [verify_token] Calling {url}")  # Optional debug log
+        response = requests.get(url, headers=headers, timeout=5)
 
         if response.status_code != 200:
-            raise InvalidTokenError()
+            raise InvalidTokenError(f"Token rejected with status {response.status_code}")
 
         return response.json()
 
-    except requests.RequestException:
-        raise AuthServiceUnavailable()
+    except requests.RequestException as e:
+        raise AuthServiceUnavailable(f"Auth service unavailable: {e}")
