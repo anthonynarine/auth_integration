@@ -31,10 +31,10 @@ def verify_token(token: str) -> UserClaims:
         raise RuntimeError("AUTH_API_URL is not set in environment variables.")
 
     try:
-        url = f"{AUTH_API_URL}/api/me/"
+        url = f"{AUTH_API_URL}/api/whoami/"
         headers = {"Authorization": f"Bearer {token}"}
 
-        print(f"🔍 [verify_token] Calling {url}")  # Optional debug log
+        print(f"🔍 [verify_token] Calling {url}")  # ✅ Now accurate
         response = requests.get(url, headers=headers, timeout=5)
 
         if response.status_code != 200:
