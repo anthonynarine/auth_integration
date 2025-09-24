@@ -1,10 +1,8 @@
 import requests
-from rest_framework.authentication import BaseAuthentication
-from auth_integration.exceptions import InvalidTokenError, AuthServiceUnavailable
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
+from rest_framework.authentication import BaseAuthentication
 from typing import TypedDict, Literal
-
 
 # ==============================
 # 🔐 TypedDict Definitions
@@ -12,7 +10,8 @@ from typing import TypedDict, Literal
 
 class UserClaims(TypedDict):
     """
-    Structure of the user object returned by the Auth API `/me/` endpoint.
+    Structure of the user object returned by the Auth API `/whoami/` endpoint.
+    (Kept compatible with your previous /me/ claims.)
     """
     id: int
     email: str
@@ -21,55 +20,56 @@ class UserClaims(TypedDict):
     last_name: str
 
 class AuthHeaders(TypedDict):
-    """
-    HTTP headers required when making the validation request to the Auth API.
-    """
     Authorization: str
+
 
 class ExternalJWTAuthentication(BaseAuthentication):
     """
-    Custom DRF authentication class that verifies a JWT access token
-    by calling the external Auth API's `/me/` endpoint.
+    DRF auth class that validates the incoming request by calling the external
+    Auth API "validate" endpoint (default: /whoami/).
 
-    If valid, attaches user claims to the request as `request.user_claims`.
+    DEV:
+      - Bearer <access> is forwarded in the Authorization header.
+    PROD:
+      - HttpOnly cookies are forwarded via `cookies=request.COOKIES`.
 
-    Returns:
-        - (AnonymousUser, None): If token is valid (we don’t use Django's auth.User)
-        - None: If no Authorization header is present (DRF will continue checking)
-        - Raises AuthenticationFailed: If token is invalid or Auth API is unreachable
+    Configure via Django settings:
+      AUTH_API_URL: Base URL (e.g., "https://auth.example.com/api")
+      AUTH_API_VALIDATE_PATH: Relative path (default "whoami/")
     """
 
+    timeout = 5  # seconds
+
+    def _validate_url(self) -> str:
+        base = (getattr(settings, "AUTH_API_URL", "") or "").rstrip("/")
+        path = getattr(settings, "AUTH_API_VALIDATE_PATH", "whoami/").lstrip("/")
+        return f"{base}/{path}"
+
     def authenticate(self, request):
-        # Step 1: Get the Authorization header
+        # 1) Extract bearer, if present (DEV)
         auth_header = request.headers.get("Authorization")
+        token = None
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1]
 
-        # Step 2: If header is missing or malformed, skip this auth class
-        if not auth_header or not auth_header.startswith("Bearer "):
-            return None  # DRF will try the next auth class (if any)
+        # 2) Build headers (bearer optional) and forward cookies (for PROD)
+        headers: AuthHeaders | dict = {}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
 
-        # Step 3: Extract the token string
-        token = auth_header.split(" ")[1]
+        url = self._validate_url()
 
         try:
-            # Step 4: Define headers and send a request to the external Auth API
-            headers: AuthHeaders = {"Authorization": f"Bearer {token}"}
-            response = requests.get(
-                f"{settings.AUTH_API_URL}/me/",
-                headers=headers,
-                timeout=5  # Avoid hanging if the Auth API is slow or down
-            )
-
-            # Step 5: If the token is invalid or expired, deny access
-            if response.status_code != 200:
-                raise InvalidTokenError()
-
-            # Step 6: Parse and attach validated user claims to the request
-            user_claims: UserClaims = response.json()
-            request.user_claims = user_claims
-
-            # Step 7: Return a placeholder user object (we don't use Django's user model)
-            return (AnonymousUser(), None)
-
+            resp = requests.get(url, headers=headers, cookies=request.COOKIES, timeout=self.timeout)
         except requests.RequestException:
-            # Step 8: Fail gracefully if the Auth API is unreachable
+            from auth_integration.exceptions import AuthServiceUnavailable
             raise AuthServiceUnavailable()
+
+        if resp.status_code != 200:
+            from auth_integration.exceptions import InvalidTokenError
+            raise InvalidTokenError()
+
+        # 3) Attach validated claims to the request and return a placeholder user
+        user_claims: UserClaims = resp.json()
+        request.user_claims = user_claims
+        return (AnonymousUser(), None)

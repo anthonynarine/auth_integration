@@ -2,25 +2,36 @@
 auth_integration.client
 =======================
 
-Provides an AuthAPIClient for validating JWT access tokens using an external Auth API.
-This client is designed to be used by internal services like Lumen, Image API, etc.
+Lightweight client for validating JWT access tokens against the external Auth API.
 
-This client should NOT be used to handle login or token refresh — only identity validation.
+Purpose
+-------
+- Intended for *internal services* (e.g. Lumen, Image API) that need to validate
+  a user identity but don’t want to re-implement HTTP calls.
+- Complements `ExternalJWTAuthentication` (DRF auth class) by providing a
+  programmatic API.
 
-Example usage:
---------------
->>> client = AuthAPIClient("https://your-auth-api.com")
+⚠️ Important
+------------
+- This client is *not* responsible for login or token refresh.
+- Use it only for identity validation (`/whoami/` or equivalent).
+
+Example
+-------
+>>> from auth_integration.client import AuthAPIClient
+>>> client = AuthAPIClient("https://ant-django-auth-62cf01255868.herokuapp.com/api")
 >>> user = client.whoami(token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
 >>> print(user["email"])
 """
 
 import requests
 from typing import TypedDict, Literal
+from django.conf import settings
 
 
 class UserClaims(TypedDict):
     """
-    Expected structure of the user data returned by /whoami/
+    Expected structure of the user data returned by /whoami/ (or configured path).
     """
     id: int
     email: str
@@ -31,32 +42,41 @@ class UserClaims(TypedDict):
 
 class AuthAPIClient:
     """
-    A simple client for validating access tokens via the /whoami/ endpoint of the Auth API.
+    A simple client for validating access tokens via the Auth API.
+
+    Reads configuration from Django settings if available:
+    - AUTH_API_URL ........ Base URL of the Auth API (e.g. https://.../api)
+    - AUTH_API_VALIDATE_PATH .. Relative path to validation endpoint (default: whoami/)
     """
 
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str | None = None):
         """
         Initialize the client with the base URL of the Auth API.
+
         Args:
-            base_url (str): e.g. "https://ant-django-auth.herokuapp.com"
+            base_url (str, optional): Overrides Django settings if provided.
         """
-        self.base_url = base_url.rstrip("/")
+        # Use explicit arg, else fall back to Django settings.
+        self.base_url = (base_url or getattr(settings, "AUTH_API_URL", "")).rstrip("/")
 
     def whoami(self, token: str) -> UserClaims:
         """
-        Validates a JWT access token using /whoami/ endpoint.
+        Validate a JWT access token using the configured validation endpoint.
 
         Args:
-            token (str): A raw JWT token (not prefixed with "Bearer")
+            token (str): A raw JWT token (not prefixed with "Bearer").
 
         Returns:
-            UserClaims: dictionary containing user identity and role
+            UserClaims: Dictionary containing identity claims.
 
         Raises:
-            ValueError: If token is invalid or unauthorized (401)
-            RuntimeError: For network errors or unexpected responses
+            ValueError: If token is invalid/unauthorized (401).
+            RuntimeError: For network errors or unexpected responses.
         """
-        url = f"{self.base_url}/whoami/"
+        # Use configurable path (default "whoami/")
+        path = getattr(settings, "AUTH_API_VALIDATE_PATH", "whoami/").lstrip("/")
+        url = f"{self.base_url}/{path}"
+
         headers = {"Authorization": f"Bearer {token}"}
 
         try:

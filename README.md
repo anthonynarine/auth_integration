@@ -33,7 +33,7 @@ This private package allows Django backends like **Lumen** to securely authentic
     |
     | 3. Calls auth_integration.ExternalJWTAuthentication
     | 4. Makes request to:
-    |    GET https://auth.example.com/api/me/
+    |    GET https://auth.example.com/api/whoami/
     |    with same Authorization header
     |
     v
@@ -168,7 +168,7 @@ Authorization: Bearer <token>
 |   React Frontend  |                         |     Auth API       |
 |-------------------|                         |--------------------|
 | - Login form      |                         | - /api/token/      |
-| - Access token    |-----------------------> | - /api/me/         |
+| - Access token    |-----------------------> | - /api/whoami/         |
 | - Sends API call  |                         +--------------------+
 |   with JWT        |                                    ▲
 +--------|----------+                                    |
@@ -176,7 +176,7 @@ Authorization: Bearer <token>
          |  GET /api/... with JWT in header              |
          v                                               |
 +-----------------------------+     calls     +--------------------+
-|       Lumen Backend         |-------------->|   /api/me/         |
+|       Lumen Backend         |-------------->|   /api/whoami/         |
 |  (Django + auth_integration)|              |  (Validates JWT)   |
 |-----------------------------|              +--------------------+
 | - ExternalJWTAuthentication |
@@ -205,7 +205,7 @@ Authorization: Bearer <token>
 
 ---
 
-## 👤 Author
+## 👤 Author  Anthony Narine
 
 Built for the **Lumen vascular reporting platform** and private clinical tools.  
 Maintained by **Anthony Narine**.
