@@ -1,7 +1,7 @@
 🔄 Tutorial: Updating Backends that Use auth_integration
 1. Update the auth_integration Package
 
-When you make changes inside the auth_integration repo:
+When changes are made inside the auth_integration repo:
 
 Bump the version in pyproject.toml:
 
