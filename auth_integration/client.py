@@ -1,92 +1,116 @@
 """
-auth_integration.client
-=======================
+auth_integration.client — Unified Async JWT Validation Client
+==============================================================
 
-Lightweight client for validating JWT access tokens against the external Auth API.
+Purpose:
+--------
+Provides a shared asynchronous client for validating JWT access tokens against
+the centralized **Gait Auth API** (`/whoami/` endpoint).
 
-Purpose
--------
-- Intended for *internal services* (e.g. Lumen, Image API) that need to validate
-  a user identity but don’t want to re-implement HTTP calls.
-- Complements `ExternalJWTAuthentication` (DRF auth class) by providing a
-  programmatic API.
+This module replaces the older synchronous `client.py` and `token_utils.py`.
+It is fully framework-agnostic and safe for both **Django (DRF)** and **FastAPI**.
 
-⚠️ Important
-------------
-- This client is *not* responsible for login or token refresh.
-- Use it only for identity validation (`/whoami/` or equivalent).
+Key Features:
+-------------
+- ✅ Asynchronous, non-blocking (uses httpx)
+- ✅ Works across Django & FastAPI
+- ✅ Centralized error handling (InvalidTokenError, AuthServiceUnavailable)
+- ✅ Secure logging (never logs tokens or PHI)
+- ✅ Typed responses via `UserClaims`
 
-Example
--------
->>> from auth_integration.client import AuthAPIClient
->>> client = AuthAPIClient("https://ant-django-auth-62cf01255868.herokuapp.com/api")
->>> user = client.whoami(token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
->>> print(user["email"])
+Teaching Notes:
+---------------
+Think of this module as the "trusted messenger" between your backend services
+and the Gait Auth API. Its sole job is to verify whether an incoming JWT is
+valid — not to issue, refresh, or store tokens.
 """
 
-import requests
+import logging
+import httpx
 from typing import TypedDict, Literal
-from django.conf import settings
+
+from auth_integration.settings import GAIT_AUTH_URL, GAIT_TIMEOUT
+from auth_integration.exceptions import InvalidTokenError, AuthServiceUnavailable
 
 
+# ============================================================================
+# 🧩 TypedDict — expected structure of claims returned by Auth API
+# ============================================================================
 class UserClaims(TypedDict):
     """
-    Expected structure of the user data returned by /whoami/ (or configured path).
+    Expected structure of the claims returned from Gait `/whoami/`.
+
+    Example:
+        {
+            "id": "user-123",
+            "email": "tech@example.com",
+            "role": "technologist",
+            "first_name": "Jane",
+            "last_name": "Doe"
+        }
     """
-    id: int
+    id: str
     email: str
+    role: Literal["admin", "physician", "technologist"]
     first_name: str
     last_name: str
-    role: Literal["admin", "physician", "technologist"]
 
 
-class AuthAPIClient:
+# ============================================================================
+# ⚙️ Module-level logger configuration
+# ============================================================================
+logger = logging.getLogger("auth_integration.client")
+logger.setLevel(logging.INFO)
+
+
+# ============================================================================
+# 🔐 Core async validator
+# ============================================================================
+async def validate_token(token: str) -> UserClaims:
     """
-    A simple client for validating access tokens via the Auth API.
+    Validates a JWT access token by calling the Gait Auth API `/whoami/` endpoint.
 
-    Reads configuration from Django settings if available:
-    - AUTH_API_URL ........ Base URL of the Auth API (e.g. https://.../api)
-    - AUTH_API_VALIDATE_PATH .. Relative path to validation endpoint (default: whoami/)
+    Args:
+        token (str): The raw JWT access token (without "Bearer" prefix).
+
+    Returns:
+        UserClaims: Parsed identity claims from the Auth API.
+
+    Raises:
+        InvalidTokenError: If token is invalid, expired, or unauthorized (401).
+        AuthServiceUnavailable: If Auth API cannot be reached or returns an unexpected response.
+
+    Teaching Notes:
+        - This function performs an asynchronous HTTP GET call.
+        - It should be awaited from FastAPI dependencies or called via `asyncio.run()` in Django.
+        - Never log or print tokens for HIPAA and security compliance.
     """
+    # Step 1: Build the endpoint URL
+    url = f"{GAIT_AUTH_URL.rstrip('/')}/whoami/"
+    headers = {"Authorization": f"Bearer {token}"}
 
-    def __init__(self, base_url: str | None = None):
-        """
-        Initialize the client with the base URL of the Auth API.
+    logger.info(f"Validating token via {url}")  # Safe: no PHI or token content
 
-        Args:
-            base_url (str, optional): Overrides Django settings if provided.
-        """
-        # Use explicit arg, else fall back to Django settings.
-        self.base_url = (base_url or getattr(settings, "AUTH_API_URL", "")).rstrip("/")
+    # Step 2: Perform async HTTP GET to Gait
+    try:
+        async with httpx.AsyncClient(timeout=GAIT_TIMEOUT) as client:
+            response = await client.get(url, headers=headers)
+    except httpx.RequestError as e:
+        logger.error(f"Auth API unreachable: {e.__class__.__name__}")
+        raise AuthServiceUnavailable("Authentication service is currently unavailable.") from e
 
-    def whoami(self, token: str) -> UserClaims:
-        """
-        Validate a JWT access token using the configured validation endpoint.
-
-        Args:
-            token (str): A raw JWT token (not prefixed with "Bearer").
-
-        Returns:
-            UserClaims: Dictionary containing identity claims.
-
-        Raises:
-            ValueError: If token is invalid/unauthorized (401).
-            RuntimeError: For network errors or unexpected responses.
-        """
-        # Use configurable path (default "whoami/")
-        path = getattr(settings, "AUTH_API_VALIDATE_PATH", "whoami/").lstrip("/")
-        url = f"{self.base_url}/{path}"
-
-        headers = {"Authorization": f"Bearer {token}"}
-
+    # Step 3: Handle response cases
+    if response.status_code == 200:
         try:
-            response = requests.get(url, headers=headers)
-        except requests.RequestException as e:
-            raise RuntimeError(f"Network error contacting Auth API: {e}")
-
-        if response.status_code == 200:
-            return response.json()
-        elif response.status_code == 401:
-            raise ValueError("401 Unauthorized: Token is invalid or expired")
-        else:
-            raise RuntimeError(f"Unexpected response {response.status_code}: {response.text}")
+            data = response.json()
+            logger.info("✅ Token validated successfully (claims received).")
+            return data  # type: ignore
+        except Exception:
+            logger.error("Invalid JSON response from Auth API.")
+            raise AuthServiceUnavailable("Malformed response from authentication service.")
+    elif response.status_code == 401:
+        logger.warning("Invalid or expired token received (401).")
+        raise InvalidTokenError("Invalid or expired token.")
+    else:
+        logger.error(f"Unexpected status {response.status_code} from Auth API.")
+        raise AuthServiceUnavailable(f"Unexpected response: {response.status_code}")
