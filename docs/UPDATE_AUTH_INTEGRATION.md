@@ -1,104 +1,123 @@
-🔄 Tutorial: Updating Backends that Use auth_integration
-1. Update the auth_integration Package
+# 🔄 Tutorial: Updating Backends that Use auth_integration v2.0.0
 
-When changes are made inside the auth_integration repo:
+This guide explains how to update your Django or FastAPI backend
+(Lumen Reports, Lumen Media, Dubin, HL7, etc.) after new releases of
+the **auth_integration** package.
 
-Bump the version in pyproject.toml:
+---
 
+## 🧱 1. Update the Package Version
+When a new version of `auth_integration` is released:
+
+Open **pyproject.toml** inside the auth_integration repo:
+
+```toml
 [project]
 name = "auth_integration"
-version = "0.3.0"   # ⬅️ bump this
+version = "2.0.0"   # ⬅️ bump this
+```
 
-
-Commit and tag the release:
-
+Then tag and push:
+```bash
 git add .
-git commit -m "chore(release): bump version to 0.3.0"
-git tag v0.3.0
+git commit -m "chore(release): bump version to 2.0.0"
+git tag v2.0.0
 git push origin main
-git push origin v0.3.0
+git push origin v2.0.0
+```
 
+✅ GitHub now hosts a tagged build.
 
-✅ Now GitHub has a new tagged version.
+---
 
-2. Update Backend requirements.txt
+## ⚙️ 2. Update Each Backend’s `requirements.txt`
+Change the version tag for the dependency:
 
-Each backend (like Lumen) lists the package.
-Open requirements.txt and bump the tag:
+```txt
+auth_integration @ git+https://${GITHUB_TOKEN}@github.com/anthonynarine/auth_integration.git@v2.0.0
+```
 
-auth_integration @ git+https://${GITHUB_TOKEN}@github.com/anthonynarine/auth_integration.git@v0.3.0
+💡 Keep `${GITHUB_TOKEN}` in your `.env` or keychain — never commit it.
 
+---
 
-💡 Using ${GITHUB_TOKEN} ensures private repo access. Keep your token in .env or system keyring.
-
-3. Reinstall the Package
-
+## 🧰 3. Reinstall the Package
 In the backend’s virtual environment:
-
-# Make sure venv is active
+```bash
 pip install --upgrade -r requirements.txt
+```
 
+Check:
+```
+Successfully installed auth_integration-2.0.0
+```
 
-Check the install log — you should see:
+---
 
-Successfully installed auth_integration-0.3.0
-
-4. Restart the Backend
-
-After updating dependencies, restart your Django server:
-
-# For dev
+## 🔄 4. Restart the Backend
+**For Django:**
+```bash
 python manage.py runserver
+```
 
-# For production (example with Daphne)
-daphne lumen.asgi:application
+**For FastAPI:**
+```bash
+uvicorn lumen_media.main:app --reload
+```
 
-
-If you’re using Docker, rebuild the container:
-
+**For Dockerized services:**
+```bash
 docker-compose build
 docker-compose up -d
+```
 
-5. Verify the Update
+---
 
-Open the backend’s site-packages to confirm the version:
-
+## 🧾 5. Verify the Update
+```bash
 pip show auth_integration
-
-
+```
 Should print:
-
+```
 Name: auth_integration
-Version: 0.3.0
+Version: 2.0.0
+```
 
+Test a secured API (e.g., `/api/reports/`) and confirm that:
+- The service calls `/whoami/` via Gait Auth API.
+- No authentication errors occur in logs.
 
-Run a test request (e.g., your /api/templates/carotid/) and check logs.
-It should now hit /whoami/ instead of /me/.
+---
 
-6. Recommended Workflows
+## 🔧 6. Recommended Workflows
 
-Dev workflow: You can also create a moving dev tag in your GitHub repo.
-Then in requirements.txt:
-
-auth_integration @ git+https://${GITHUB_TOKEN}@github.com/anthonynarine/auth_integration.git@dev
-
-
-Every time you update the package, re-tag dev:
-
+### Dev Tag Workflow
+```bash
 git tag -f dev
 git push origin dev --force
+```
+Then in backend:
+```txt
+auth_integration @ git+https://${GITHUB_TOKEN}@github.com/anthonynarine/auth_integration.git@dev
+```
+→ reinstall when dev changes.
 
+### Release Workflow
+Use semantic versioning (`2.0.0`, `2.1.0`, etc.) for production releases.
 
-Then just reinstall in your backend.
+---
 
-Release workflow: Use semantic versioning (0.3.0, 0.4.0, etc.) for stable production releases.
+## 🔑 Summary
 
-🔑 Summary
+| Step | Action |
+|------|---------|
+| 1️⃣ | Bump version + tag release in `auth_integration` |
+| 2️⃣ | Update backend’s `requirements.txt` |
+| 3️⃣ | Reinstall dependencies |
+| 4️⃣ | Restart backend |
+| 5️⃣ | Verify with `pip show` or API call |
 
-Update: bump version + tag in auth_integration
+---
 
-Backend: bump requirements.txt to new tag
-
-Reinstall: pip install --upgrade -r requirements.txt
-
-Restart backend and verify with pip show or test requests
+Maintained by **Anthony Narine**  
+© 2025 — Auth Integration Project

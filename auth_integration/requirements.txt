@@ -1,4 +1,0 @@
-# auth_integration/requirements.txt
-requests==2.32.4
-python-decouple==3.8
-PyJWT==2.10.1
