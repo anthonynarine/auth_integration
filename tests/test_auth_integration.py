@@ -1,8 +1,8 @@
 """
-test_auth_integration.py
+test_gait_integration.py
 =========================
 
-Integration test suite for the `auth_integration` package.
+Integration test suite for the `gait_integration` package.
 
 Purpose:
 --------
@@ -25,7 +25,7 @@ Usage:
 
 3. Run the tests with:
 
-    $ pytest auth_integration/tests/
+    $ pytest gait_integration/tests/
 
 Dependencies:
 -------------
@@ -33,7 +33,7 @@ Dependencies:
 - pytest
 """
 
-from auth_integration.client import AuthAPIClient
+from gait_integration.client import AuthAPIClient
 from decouple import config
 import pytest
 

@@ -1,11 +1,11 @@
 """
-auth_integration.settings — Unified Configuration Loader
+gait_integration.settings — Unified Configuration Loader
 ========================================================
 
 Purpose:
 --------
 This module provides a **universal configuration interface** for the
-`auth_integration` package — supporting both Django (via project settings)
+`gait_integration` package — supporting both Django (via project settings)
 and FastAPI (via environment variables using python-decouple).
 
 It ensures that all microservices in the Lumen ecosystem can resolve
@@ -35,7 +35,7 @@ from decouple import config
 # -----------------------------------------------------------------------------
 # ⚙️ Logger setup (lightweight internal)
 # -----------------------------------------------------------------------------
-logger = logging.getLogger("auth_integration.settings")
+logger = logging.getLogger("gait_integration.settings")
 logger.setLevel(logging.INFO)
 
 # -----------------------------------------------------------------------------

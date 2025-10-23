@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "auth_integration"
+name = "gait_integration"
 version = "0.2.0"
 description = "Reusable authentication and permissions package for Django projects using an external Auth API (Gait)"
 authors = [
@@ -16,4 +16,4 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["auth_integration"]
+packages = ["gait_integration"]

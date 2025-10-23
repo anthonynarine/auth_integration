@@ -1,5 +1,5 @@
 """
-auth_integration.fastapi.dependencies — FastAPI Authentication Dependency
+gait_integration.fastapi.dependencies — FastAPI Authentication Dependency
 =========================================================================
 
 Purpose:
@@ -13,7 +13,7 @@ It verifies a Bearer token, returns the user claims, and raises an
 
 Teaching Notes:
 ---------------
-- Uses the shared async validator from `auth_integration.client`.
+- Uses the shared async validator from `gait_integration.client`.
 - Built for `Depends()` injection — lightweight and async-safe.
 - Never logs or exposes PHI or token content.
 """
@@ -23,14 +23,14 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.status import HTTP_401_UNAUTHORIZED, HTTP_503_SERVICE_UNAVAILABLE
 
-from auth_integration.client import validate_token
-from auth_integration.exceptions import InvalidTokenError, AuthServiceUnavailable
+from gait_integration.client import validate_token
+from gait_integration.exceptions import InvalidTokenError, AuthServiceUnavailable
 
 
 # -----------------------------------------------------------------------------
 # ⚙️ Logger (HIPAA-safe)
 # -----------------------------------------------------------------------------
-logger = logging.getLogger("auth_integration.fastapi.dependencies")
+logger = logging.getLogger("gait_integration.fastapi.dependencies")
 logger.setLevel(logging.INFO)
 
 

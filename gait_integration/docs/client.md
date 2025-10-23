@@ -20,7 +20,7 @@ It performs asynchronous JWT validation by calling the `/api/whoami/` endpoint o
 ## Example Usage
 
 ```python
-from auth_integration.client import validate_token
+from gait_integration.client import validate_token
 
 claims = await validate_token(token="eyJhbGciOiJI...")
 print(claims["role"])  # physician

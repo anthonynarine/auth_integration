@@ -1,19 +1,19 @@
-# 🔄 Tutorial: Updating Backends that Use auth_integration v2.0.0
+# 🔄 Tutorial: Updating Backends that Use gait_integration v2.0.0
 
 This guide explains how to update your Django or FastAPI backend
 (Lumen Reports, Lumen Media, Dubin, HL7, etc.) after new releases of
-the **auth_integration** package.
+the **gait_integration** package.
 
 ---
 
 ## 🧱 1. Update the Package Version
-When a new version of `auth_integration` is released:
+When a new version of `gait_integration` is released:
 
-Open **pyproject.toml** inside the auth_integration repo:
+Open **pyproject.toml** inside the gait_integration repo:
 
 ```toml
 [project]
-name = "auth_integration"
+name = "gait_integration"
 version = "2.0.0"   # ⬅️ bump this
 ```
 
@@ -34,7 +34,7 @@ git push origin v2.0.0
 Change the version tag for the dependency:
 
 ```txt
-auth_integration @ git+https://${GITHUB_TOKEN}@github.com/anthonynarine/auth_integration.git@v2.0.0
+gait_integration @ git+https://${GITHUB_TOKEN}@github.com/anthonynarine/gait_integration.git@v2.0.0
 ```
 
 💡 Keep `${GITHUB_TOKEN}` in your `.env` or keychain — never commit it.
@@ -49,7 +49,7 @@ pip install --upgrade -r requirements.txt
 
 Check:
 ```
-Successfully installed auth_integration-2.0.0
+Successfully installed gait_integration-2.0.0
 ```
 
 ---
@@ -75,11 +75,11 @@ docker-compose up -d
 
 ## 🧾 5. Verify the Update
 ```bash
-pip show auth_integration
+pip show gait_integration
 ```
 Should print:
 ```
-Name: auth_integration
+Name: gait_integration
 Version: 2.0.0
 ```
 
@@ -98,7 +98,7 @@ git push origin dev --force
 ```
 Then in backend:
 ```txt
-auth_integration @ git+https://${GITHUB_TOKEN}@github.com/anthonynarine/auth_integration.git@dev
+gait_integration @ git+https://${GITHUB_TOKEN}@github.com/anthonynarine/gait_integration.git@dev
 ```
 → reinstall when dev changes.
 
@@ -111,7 +111,7 @@ Use semantic versioning (`2.0.0`, `2.1.0`, etc.) for production releases.
 
 | Step | Action |
 |------|---------|
-| 1️⃣ | Bump version + tag release in `auth_integration` |
+| 1️⃣ | Bump version + tag release in `gait_integration` |
 | 2️⃣ | Update backend’s `requirements.txt` |
 | 3️⃣ | Reinstall dependencies |
 | 4️⃣ | Restart backend |

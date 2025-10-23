@@ -1,12 +1,12 @@
-# 🚀 Release Checklist for auth_integration v2.0.0
+# 🚀 Release Checklist for gait_integration v2.0.0
 
-This guide explains how to cut a new release of the **auth_integration** package,
+This guide explains how to cut a new release of the **gait_integration** package,
 publish it to GitHub or a private registry, and make it available for any backend (Lumen Reports, Media, Dubin, etc.).
 
 ---
 
 ## 🧱 1. Make Code Changes
-- Update or fix code inside `auth_integration/`
+- Update or fix code inside `gait_integration/`
 - Add or update documentation under `/docs/modules/`
 - Run unit or integration tests (pytest)
 
@@ -54,7 +54,7 @@ Now GitHub holds both the code and the version tag.
 Each backend lists this package in its `requirements.txt`:
 
 ```txt
-auth_integration @ git+https://${GITHUB_TOKEN}@github.com/anthonynarine/auth_integration.git@v2.0.0
+gait_integration @ git+https://${GITHUB_TOKEN}@github.com/anthonynarine/gait_integration.git@v2.0.0
 ```
 
 Then reinstall:
@@ -68,11 +68,11 @@ Restart backend (Django runserver, Daphne, or Docker).
 
 ## 🧾 6. Verify Installation
 ```bash
-pip show auth_integration
+pip show gait_integration
 ```
 → should show:
 ```
-Name: auth_integration
+Name: gait_integration
 Version: 2.0.0
 ```
 
@@ -91,7 +91,7 @@ git push origin dev --force
 
 Then in backends:
 ```txt
-auth_integration @ git+https://${GITHUB_TOKEN}@github.com/anthonynarine/auth_integration.git@dev
+gait_integration @ git+https://${GITHUB_TOKEN}@github.com/anthonynarine/gait_integration.git@dev
 ```
 
 Reinstall:
@@ -106,7 +106,7 @@ pip install --upgrade -r requirements.txt
 2. Push main + tag  
 3. Update backend requirements  
 4. Reinstall & restart  
-5. Verify with `pip show auth_integration`
+5. Verify with `pip show gait_integration`
 
 ---
 

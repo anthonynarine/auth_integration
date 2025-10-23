@@ -3,7 +3,7 @@
 
 
 
-auth_integration is a Django package that connects your backend to Gait, a centralized Auth API.
+gait_integration is a Django package that connects your backend to Gait, a centralized Auth API.
 It validates JWTs by calling Gait /api/whoami/ and enforces role-based permissions inside Django.
 
 No more scattered JWT secrets. No more duplicated role logic. Just one source of truth for authentication and identity.
@@ -31,7 +31,7 @@ Sends API requests to Django with:
 Authorization: Bearer <JWT>
 
 
-Django Backend (with auth_integration)
+Django Backend (with gait_integration)
 
 ExternalJWTAuthentication extracts the JWT
 
@@ -62,7 +62,7 @@ Executes the view securely
 Mermaid Diagram (renders in GitHub/Notion)
 sequenceDiagram
     participant React as React Frontend
-    participant Django as Django Backend (auth_integration)
+    participant Django as Django Backend (gait_integration)
     participant Gait as Gait (Auth API)
 
     React->>Gait: Login → Get JWT
@@ -90,7 +90,7 @@ ASCII Fallback
          v                                               |
 +-----------------------------+     calls     +--------------------+
 |  Django Backend             |-------------->|  /api/whoami/      |
-|  (with auth_integration)    |              |  (Validates JWT)   |
+|  (with gait_integration)    |              |  (Validates JWT)   |
 |-----------------------------|              +--------------------+
 | - ExternalJWTAuthentication |
 | - request.user_claims       |
@@ -99,7 +99,7 @@ ASCII Fallback
 
 ⚙️ Setup
 1. Install
-pip install git+https://<token>@github.com/anthonynarine/auth_integration.git
+pip install git+https://<token>@github.com/anthonynarine/gait_integration.git
 
 2. Configure Django
 # settings.py
@@ -107,14 +107,14 @@ AUTH_API_URL = "https://gait.example.com/api"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "auth_integration.authentication.ExternalJWTAuthentication",
+        "gait_integration.authentication.ExternalJWTAuthentication",
     ]
 }
 
 💻 Usage Example
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from auth_integration.permissions import HasRole
+from gait_integration.permissions import HasRole
 
 class TechOnlyView(APIView):
     permission_classes = [HasRole("technologist")]
@@ -183,7 +183,7 @@ You said:
 yes!
 ChatGPT said:
 
-Perfect 🔥 — adding a multi-service usage section will show that auth_integration isn’t just for Lumen, but scales beautifully when you have multiple Django backends all delegating to Gait. That’s where the “single source of truth” story really shines.
+Perfect 🔥 — adding a multi-service usage section will show that gait_integration isn’t just for Lumen, but scales beautifully when you have multiple Django backends all delegating to Gait. That’s where the “single source of truth” story really shines.
 
 Here’s the expanded README with a dedicated section:
 
@@ -196,7 +196,7 @@ Here’s the expanded README with a dedicated section:
 
 
 
-auth_integration is a Django package that connects your backend to Gait, a centralized Auth API.
+gait_integration is a Django package that connects your backend to Gait, a centralized Auth API.
 It validates JWTs by calling Gait /api/whoami/ and enforces role-based permissions inside Django.
 
 No more scattered JWT secrets. No more duplicated role logic. Just one source of truth for authentication and identity.
@@ -224,7 +224,7 @@ Sends API requests to Django with:
 Authorization: Bearer <JWT>
 
 
-Django Backend (with auth_integration)
+Django Backend (with gait_integration)
 
 ExternalJWTAuthentication extracts the JWT
 
@@ -255,7 +255,7 @@ Executes the view securely
 Mermaid Sequence Diagram
 sequenceDiagram
     participant React as React Frontend
-    participant Django as Django Backend (auth_integration)
+    participant Django as Django Backend (gait_integration)
     participant Gait as Gait (Auth API)
 
     React->>Gait: Login → Get JWT
@@ -271,7 +271,7 @@ sequenceDiagram
 
 ⚙️ Setup
 1. Install
-pip install git+https://<token>@github.com/anthonynarine/auth_integration.git
+pip install git+https://<token>@github.com/anthonynarine/gait_integration.git
 
 2. Configure Django
 # settings.py
@@ -279,14 +279,14 @@ AUTH_API_URL = "https://gait.example.com/api"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "auth_integration.authentication.ExternalJWTAuthentication",
+        "gait_integration.authentication.ExternalJWTAuthentication",
     ]
 }
 
 💻 Usage Example
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from auth_integration.permissions import HasRole
+from gait_integration.permissions import HasRole
 
 class TechOnlyView(APIView):
     permission_classes = [HasRole("technologist")]
@@ -298,7 +298,7 @@ class TechOnlyView(APIView):
 
 🌐 Usage in Multi-Service Setups
 
-One of the biggest advantages of auth_integration is how it scales in a microservices environment.
+One of the biggest advantages of gait_integration is how it scales in a microservices environment.
 
 Imagine you have multiple Django services:
 
@@ -312,7 +312,7 @@ Instead of each service handling JWT validation separately:
 
 All services trust Gait for identity.
 
-Each one uses auth_integration to forward tokens to /api/whoami/.
+Each one uses gait_integration to forward tokens to /api/whoami/.
 
 Roles & claims are enforced consistently everywhere.
 
