@@ -1,4 +1,4 @@
-# 🔐 Gait Integration — Django Adapter (`gait_integration/django/authentication.py`)
+# 🔐 Gait Integration — Django Adapter (`auth_integration/django/authentication.py`)
 
 ## 🧱 Overview
 This module provides the **DRF authentication backend** that plugs Django services (e.g., Lumen Reports) into the centralized **Gait Auth API**.  
@@ -32,7 +32,7 @@ sequenceDiagram
   autonumber
   participant FE as React (DEV/PROD)
   participant DJ as Django + DRF
-  participant AI as gait_integration (Django adapter)
+  participant AI as auth_integration (Django adapter)
   participant CL as client.validate_token (Bearer)
   participant GA as Gait Auth API
 
@@ -63,7 +63,7 @@ AUTH_API_URL = "https://ant-django-auth-62cf01255868.herokuapp.com/api"
 # views.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from gait_integration.django.authentication import ExternalJWTAuthentication
+from auth_integration.django.authentication import ExternalJWTAuthentication
 
 class WhoAmIView(APIView):
     authentication_classes = [ExternalJWTAuthentication]

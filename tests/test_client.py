@@ -7,8 +7,8 @@
 
 import pytest
 import httpx
-from gait_integration.client import validate_token
-from gait_integration.exceptions import InvalidTokenError, AuthServiceUnavailable
+from auth_integration.client import validate_token
+from auth_integration.exceptions import InvalidTokenError, AuthServiceUnavailable
 
 
 pytestmark = pytest.mark.asyncio

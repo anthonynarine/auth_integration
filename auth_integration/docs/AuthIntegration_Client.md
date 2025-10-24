@@ -1,7 +1,7 @@
-# 🧩 gait_integration.client — Unified Async JWT Validation Client
+# 🧩 auth_integration.client — Unified Async JWT Validation Client
 
 ### Purpose
-The `gait_integration.client` module provides a **framework-agnostic, asynchronous** way to validate JWT access tokens by delegating verification to the **Gait Auth API** (`/whoami/` endpoint).
+The `auth_integration.client` module provides a **framework-agnostic, asynchronous** way to validate JWT access tokens by delegating verification to the **Gait Auth API** (`/whoami/` endpoint).
 
 It replaces the older, Django-only synchronous clients (`client.py`, `token_utils.py`) with a single non-blocking validator that can be used in **Django (DRF)** *and* **FastAPI** microservices.
 
@@ -26,7 +26,7 @@ It replaces the older, Django-only synchronous clients (`client.py`, `token_util
 sequenceDiagram
     autonumber
     participant S as Service (Django/FastAPI)
-    participant C as gait_integration.client
+    participant C as auth_integration.client
     participant G as Gait Auth API
 
     S->>C: validate_token(token)
@@ -36,7 +36,7 @@ sequenceDiagram
 ```
 
 **Mental Model:**
-> `gait_integration.client` acts like a translator — it forwards the token to Gait and returns the verified identity in a structured, framework-neutral way.
+> `auth_integration.client` acts like a translator — it forwards the token to Gait and returns the verified identity in a structured, framework-neutral way.
 
 ---
 
@@ -45,7 +45,7 @@ sequenceDiagram
 ### Django (Sync Context)
 ```python
 import asyncio
-from gait_integration.client import validate_token
+from auth_integration.client import validate_token
 
 def validate_user(token: str):
     claims = asyncio.run(validate_token(token))
@@ -55,7 +55,7 @@ def validate_user(token: str):
 ### FastAPI (Async Context)
 ```python
 from fastapi import Depends, FastAPI
-from gait_integration.client import validate_token
+from auth_integration.client import validate_token
 from fastapi.security import HTTPBearer
 
 app = FastAPI()
@@ -114,7 +114,7 @@ Validates a JWT by sending a GET request to `${GAIT_AUTH_URL}/whoami/`.
 
 ## 🧱 Developer Notes
 
-- Designed as the **core shared layer** for all `gait_integration` adapters.  
+- Designed as the **core shared layer** for all `auth_integration` adapters.  
 - Can be directly imported by microservices needing low-level validation.  
 - All other modules (`django/authentication.py`, `fastapi/dependencies.py`) rely on it.  
 - Safe for containerized or production deployment.

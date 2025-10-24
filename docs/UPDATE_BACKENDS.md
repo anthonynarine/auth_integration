@@ -2,7 +2,7 @@
 
 ## Overview
 This document describes how to update Django, FastAPI, or Dockerized backends
-that depend on the `gait_integration` package after a new release.
+that depend on the `auth_integration` package after a new release.
 
 ## Steps
 
@@ -17,7 +17,7 @@ that depend on the `gait_integration` package after a new release.
    - Docker: `docker compose build && docker compose up -d`
 4. Verify the installed version with:
    ```bash
-   pip show gait_integration
+   pip show auth_integration
    ```
 
 ## Notes

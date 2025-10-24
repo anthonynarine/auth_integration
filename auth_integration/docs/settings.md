@@ -1,8 +1,8 @@
-# ⚙️ Auth Integration — Settings Module (`gait_integration/settings.py`)
+# ⚙️ Auth Integration — Settings Module (`auth_integration/settings.py`)
 
 ## 🧱 Overview
 This module provides a **unified configuration system** for both Django and FastAPI microservices.  
-It ensures every service using `gait_integration` can locate and load the `GAIT_AUTH_URL` safely, regardless of framework.
+It ensures every service using `auth_integration` can locate and load the `GAIT_AUTH_URL` safely, regardless of framework.
 
 ---
 
@@ -50,13 +50,13 @@ It ensures every service using `gait_integration` can locate and load the `GAIT_
 
 ### Django (Lumen Reports)
 ```python
-from gait_integration.settings import GAIT_AUTH_URL, GAIT_TIMEOUT
+from auth_integration.settings import GAIT_AUTH_URL, GAIT_TIMEOUT
 ```
 Reads automatically from `core/settings.py`.
 
 ### FastAPI (Lumen Media)
 ```python
-from gait_integration.settings import GAIT_AUTH_URL
+from auth_integration.settings import GAIT_AUTH_URL
 print(GAIT_AUTH_URL)  # "https://ant-django-auth.herokuapp.com/api"
 ```
 Reads from `.env` file using `python-decouple`.
@@ -70,7 +70,7 @@ graph TD
   A[Django Settings.py] --> B[_get_setting()]
   C[.env File (FastAPI)] --> B
   B --> D[GAIT_AUTH_URL]
-  D --> E[gait_integration.client.validate_token()]
+  D --> E[auth_integration.client.validate_token()]
   E --> F[Gait Auth API (/whoami/)]
 ```
 

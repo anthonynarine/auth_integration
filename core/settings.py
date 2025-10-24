@@ -73,7 +73,7 @@ AUTH_API_URL = "https://ant-django-auth-62cf01255868.herokuapp.com/api"
 # Django REST Framework settings
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "gait_integration.authentication.ExternalJWTAuthentication",
+        "auth_integration.authentication.ExternalJWTAuthentication",
     ]
 }
 

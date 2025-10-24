@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 
 # Virtual environments
-gait_int_venv/
+auth_int_venv/
 .venv/
 venv/
 

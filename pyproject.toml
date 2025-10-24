@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gait_integration"
+name = "auth_integration"
 version = "0.2.1"
 description = "Reusable authentication and permissions package for Django projects using an external Auth API (Gait)"
 authors = [
@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["gait_integration"]
+packages = ["auth_integration"]
 
 # ✅ Add this section
 [tool.pytest.ini_options]

@@ -33,7 +33,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest -v -s --maxfail=1 --disable-warnings --cov=gait_integration --cov-report=term-missing
+          pytest -v -s --maxfail=1 --disable-warnings --cov=auth_integration --cov-report=term-missing
 
       - name: Upload coverage report
         if: success()

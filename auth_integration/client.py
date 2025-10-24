@@ -1,5 +1,5 @@
 """
-gait_integration.client — Unified Async JWT Validation Client
+auth_integration.client — Unified Async JWT Validation Client
 ==============================================================
 
 Purpose:
@@ -29,8 +29,8 @@ import logging
 import httpx
 from typing import TypedDict, Literal
 
-from gait_integration.settings import GAIT_AUTH_URL, GAIT_TIMEOUT
-from gait_integration.exceptions import InvalidTokenError, AuthServiceUnavailable
+from auth_integration.settings import GAIT_AUTH_URL, GAIT_TIMEOUT
+from auth_integration.exceptions import InvalidTokenError, AuthServiceUnavailable
 
 
 # ============================================================================
@@ -59,7 +59,7 @@ class UserClaims(TypedDict):
 # ============================================================================
 # ⚙️ Module-level logger configuration
 # ============================================================================
-logger = logging.getLogger("gait_integration.client")
+logger = logging.getLogger("auth_integration.client")
 logger.setLevel(logging.INFO)
 
 

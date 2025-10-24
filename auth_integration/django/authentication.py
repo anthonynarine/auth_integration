@@ -1,5 +1,5 @@
 """
-gait_integration.django.authentication — DRF Adapter
+auth_integration.django.authentication — DRF Adapter
 ====================================================
 
 Purpose:
@@ -40,9 +40,9 @@ from rest_framework.exceptions import AuthenticationFailed
 
 from asgiref.sync import async_to_sync
 
-from gait_integration.settings import GAIT_AUTH_URL, GAIT_TIMEOUT
-from gait_integration.exceptions import InvalidTokenError, AuthServiceUnavailable
-from gait_integration.client import validate_token  # async validator
+from auth_integration.settings import GAIT_AUTH_URL, GAIT_TIMEOUT
+from auth_integration.exceptions import InvalidTokenError, AuthServiceUnavailable
+from auth_integration.client import validate_token  # async validator
 
 
 # -----------------------------------------------------------------------------
@@ -59,7 +59,7 @@ class UserClaims(TypedDict):
 # -----------------------------------------------------------------------------
 # ⚙️ Logger (HIPAA-safe)
 # -----------------------------------------------------------------------------
-logger = logging.getLogger("gait_integration.django.authentication")
+logger = logging.getLogger("auth_integration.django.authentication")
 logger.setLevel(logging.INFO)
 
 

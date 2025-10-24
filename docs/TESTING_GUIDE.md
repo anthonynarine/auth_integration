@@ -1,7 +1,7 @@
-# Testing Guide for gait_integration
+# Testing Guide for auth_integration
 
 ## Overview
-This guide describes the testing strategy used for the `gait_integration` package.
+This guide describes the testing strategy used for the `auth_integration` package.
 The suite ensures correct behavior for authentication validation, exception handling,
 permissions, utility helpers, and environment configuration.
 

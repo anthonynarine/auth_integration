@@ -8,7 +8,7 @@
 
 import pytest
 from rest_framework.exceptions import APIException
-from gait_integration.exceptions import AuthServiceUnavailable, InvalidTokenError
+from auth_integration.exceptions import AuthServiceUnavailable, InvalidTokenError
 
 
 # ---------------------------------------------------------------------

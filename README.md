@@ -1,7 +1,13 @@
-# gait_integration
+# auth_integration
+
+[![Build](https://github.com/anthonynarine/Lume_Authentication/actions/workflows/python-tests.yml/badge.svg)](https://github.com/anthonynarine/Lume_Authentication/actions/workflows/python-tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Version](https://img.shields.io/badge/version-0.2.2-green.svg)](https://github.com/anthonynarine/Lume_Authentication/releases)
+
 
 ## Overview
-`gait_integration` is a reusable authentication integration layer for Django and FastAPI services.
+`auth_integration` is a reusable authentication integration layer for Django and FastAPI services.
 It provides a unified mechanism for validating JWT tokens against an external authentication
 provider, such as the Gait Auth API, and for enforcing role‑based permissions.
 
@@ -15,7 +21,7 @@ delegate authentication and identity management to a single authoritative Auth A
 ### Using pip
 
 ```bash
-pip install git+https://github.com/anthonynarine/gait_integration.git
+pip install git+https://github.com/anthonynarine/auth_integration.git
 ```
 
 ### Requirements
@@ -37,7 +43,7 @@ AUTH_API_URL = "https://gait.example.com/api"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "gait_integration.authentication.ExternalJWTAuthentication",
+        "auth_integration.authentication.ExternalJWTAuthentication",
     ]
 }
 ```
@@ -47,7 +53,7 @@ Add permission classes in your DRF views:
 ```python
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from gait_integration.permissions import HasRole
+from auth_integration.permissions import HasRole
 
 class TechOnlyView(APIView):
     permission_classes = [HasRole("technologist")]
@@ -60,7 +66,7 @@ class TechOnlyView(APIView):
 
 ```python
 from fastapi import FastAPI, Depends, HTTPException
-from gait_integration.client import validate_token
+from auth_integration.client import validate_token
 
 app = FastAPI()
 
@@ -77,7 +83,7 @@ async def secure_endpoint(token: str):
 Each service delegates token validation to the central Gait Auth API:
 
 ```
-Frontend → Backend (gait_integration) → Gait Auth API (/api/whoami/)
+Frontend → Backend (auth_integration) → Gait Auth API (/api/whoami/)
 ```
 
 The backend receives user claims from Gait and attaches them to the request context

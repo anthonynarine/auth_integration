@@ -7,7 +7,7 @@
 
 import pytest
 from types import SimpleNamespace
-from gait_integration.utils import (
+from auth_integration.utils import (
     get_user_claims,
     get_user_id,
     get_user_role,

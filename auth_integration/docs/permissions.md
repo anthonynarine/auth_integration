@@ -18,7 +18,7 @@ Provides Django REST Framework (DRF) permission classes based on user roles retu
 
 ```python
 from rest_framework.views import APIView
-from gait_integration.permissions import HasRole
+from auth_integration.permissions import HasRole
 
 class PhysicianOnly(APIView):
     permission_classes = [HasRole("physician")]

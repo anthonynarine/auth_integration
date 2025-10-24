@@ -17,14 +17,14 @@ import pytest
 @pytest.fixture(autouse=True)
 def reload_settings_module(monkeypatch):
     """
-    Ensures gait_integration.settings is reloaded fresh
+    Ensures auth_integration.settings is reloaded fresh
     for every test to avoid cached environment variables.
     """
-    if "gait_integration.settings" in importlib.sys.modules:
-        del importlib.sys.modules["gait_integration.settings"]
+    if "auth_integration.settings" in importlib.sys.modules:
+        del importlib.sys.modules["auth_integration.settings"]
     yield
-    if "gait_integration.settings" in importlib.sys.modules:
-        del importlib.sys.modules["gait_integration.settings"]
+    if "auth_integration.settings" in importlib.sys.modules:
+        del importlib.sys.modules["auth_integration.settings"]
 
 
 # ---------------------------------------------------------------------
@@ -35,7 +35,7 @@ def test_loads_from_env(monkeypatch):
     monkeypatch.setenv("GAIT_AUTH_URL", "https://dummy-auth.com/api")
     monkeypatch.setenv("GAIT_TIMEOUT", "10")
 
-    settings = importlib.import_module("gait_integration.settings")
+    settings = importlib.import_module("auth_integration.settings")
 
     assert settings.GAIT_AUTH_URL == "https://dummy-auth.com/api"
     assert settings.GAIT_TIMEOUT == 10
@@ -56,10 +56,10 @@ def test_missing_env_uses_default(monkeypatch, caplog):
 
     monkeypatch.setattr(decouple, "config", fake_config)
 
-    if "gait_integration.settings" in importlib.sys.modules:
-        del importlib.sys.modules["gait_integration.settings"]
+    if "auth_integration.settings" in importlib.sys.modules:
+        del importlib.sys.modules["auth_integration.settings"]
 
-    settings = importlib.import_module("gait_integration.settings")
+    settings = importlib.import_module("auth_integration.settings")
 
     assert settings.GAIT_AUTH_URL is None
     assert isinstance(settings.GAIT_TIMEOUT, int)
@@ -76,7 +76,7 @@ def test_fallback_to_auth_api_url(monkeypatch):
     monkeypatch.delenv("GAIT_AUTH_URL", raising=False)
     monkeypatch.setenv("AUTH_API_URL", "https://backup-auth.com/api")
 
-    settings = importlib.import_module("gait_integration.settings")
+    settings = importlib.import_module("auth_integration.settings")
 
     assert settings.GAIT_AUTH_URL == "https://backup-auth.com/api"
 
@@ -99,7 +99,7 @@ def test_handles_no_django(monkeypatch):
     builtins.__import__ = fake_import
 
     # Step 2: Import settings
-    settings = importlib.import_module("gait_integration.settings")
+    settings = importlib.import_module("auth_integration.settings")
 
     builtins.__import__ = real_import  # restore
     assert settings._is_django is False

@@ -25,7 +25,7 @@ git push origin vX.Y.Z
 In dependent backends:
 
 ```
-gait_integration @ git+https://${GITHUB_TOKEN}@github.com/anthonynarine/gait_integration.git@vX.Y.Z
+auth_integration @ git+https://${GITHUB_TOKEN}@github.com/anthonynarine/auth_integration.git@vX.Y.Z
 ```
 
 Then reinstall dependencies.
@@ -33,7 +33,7 @@ Then reinstall dependencies.
 ## 5. Verify
 
 ```bash
-pip show gait_integration
+pip show auth_integration
 ```
 
 ---
