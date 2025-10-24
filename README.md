@@ -92,6 +92,7 @@ Refer to `TESTING_GUIDE.md` for details on the unit and integration test coverag
 ![Tests](https://github.com/anthonynarine/gait_integration/actions/workflows/python-tests.yml/badge.svg?branch=main)
 
 
+
 ---
 
 ## Maintainer
