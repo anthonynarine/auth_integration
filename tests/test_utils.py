@@ -1,6 +1,10 @@
 # ✅ New Code
 # Filename: tests/test_utils.py
 
+# to run activate venv in path:
+# (gait_int_venv) \auth_integration> 
+# pytest -v -s tests/test_permissions.py
+
 import pytest
 from types import SimpleNamespace
 from gait_integration.utils import (

@@ -2,7 +2,7 @@
 # Filename: tests/test_client.py
 
 # to run activate venv in path:
-# (gait_int_venv) PS D:\react-django\Lumen\Lume_Authentication\auth_integration> 
+# (gait_int_venv) \auth_integration> 
 # pytest -v -s tests/test_client.py
 
 import pytest
