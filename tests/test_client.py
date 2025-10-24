@@ -1,88 +1,80 @@
-# ✅ New Code
+# ✅ Updated version without httpx-mock
 # Filename: tests/test_client.py
+
+# to run activate venv in path:
+# (gait_int_venv) PS D:\react-django\Lumen\Lume_Authentication\auth_integration> 
+# pytest -v -s tests/test_client.py
 
 import pytest
 import httpx
-from httpx import Request, Response
 from gait_integration.client import validate_token
 from gait_integration.exceptions import InvalidTokenError, AuthServiceUnavailable
 
 
-# ---------------------------------------------------------------------
-# 🧩 Async tests require pytest-asyncio
-# ---------------------------------------------------------------------
 pytestmark = pytest.mark.asyncio
 
 
-# ---------------------------------------------------------------------
-# 🔧 Mock environment
-# ---------------------------------------------------------------------
 @pytest.fixture(autouse=True)
 def mock_env(monkeypatch):
-    """
-    Automatically mock GAIT_AUTH_URL and GAIT_TIMEOUT for all tests.
-    """
+    """Automatically mock GAIT_AUTH_URL and GAIT_TIMEOUT."""
     monkeypatch.setenv("GAIT_AUTH_URL", "https://dummy-auth.com/api")
     monkeypatch.setenv("GAIT_TIMEOUT", "5")
 
 
 # ---------------------------------------------------------------------
-# ✅ Test: Successful token validation (200 OK)
+# ✅ Success case — 200 OK
 # ---------------------------------------------------------------------
-async def test_validate_token_success(httpx_mock):
-    """
-    Simulate a successful /whoami/ response with valid claims.
-    """
-    # Step 1: Mock endpoint
-    httpx_mock.add_response(
-        method="GET",
-        url="https://dummy-auth.com/api/whoami/",
-        json={
-            "id": "user123",
-            "email": "tech@example.com",
-            "role": "technologist",
-            "first_name": "Jane",
-            "last_name": "Doe",
-        },
-        status_code=200,
-    )
+async def test_validate_token_success(monkeypatch):
+    """Simulate a valid /whoami/ response (200 OK)."""
 
-    # Step 2: Call function
+    class MockResponse:
+        status_code = 200
+
+        def json(self):
+            return {
+                "id": "user123",
+                "email": "tech@example.com",
+                "role": "technologist",
+                "first_name": "Jane",
+                "last_name": "Doe",
+            }
+
+    async def mock_get(self, url, headers):
+        return MockResponse()
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
     claims = await validate_token("valid.token")
 
-    # Step 3: Assertions
     assert claims["email"] == "tech@example.com"
     assert claims["role"] == "technologist"
 
 
 # ---------------------------------------------------------------------
-# ❌ Test: Invalid token (401)
+# ❌ Invalid token — 401
 # ---------------------------------------------------------------------
-async def test_validate_token_invalid(httpx_mock):
-    """
-    Simulate a 401 Unauthorized response from Auth API.
-    """
-    httpx_mock.add_response(
-        method="GET",
-        url="https://dummy-auth.com/api/whoami/",
-        status_code=401,
-    )
+async def test_validate_token_invalid(monkeypatch):
+    """Simulate a 401 Unauthorized response."""
+
+    class MockResponse:
+        status_code = 401
+
+    async def mock_get(self, url, headers):
+        return MockResponse()
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
 
     with pytest.raises(InvalidTokenError):
         await validate_token("invalid.token")
 
 
 # ---------------------------------------------------------------------
-# 🚫 Test: Auth API unreachable (RequestError)
+# 🚫 API unreachable
 # ---------------------------------------------------------------------
 async def test_validate_token_unreachable(monkeypatch):
-    """
-    Simulate network failure or unreachable Auth API.
-    """
-    async def mock_get(*args, **kwargs):
+    """Simulate network failure."""
+    async def mock_get(self, url, headers):
         raise httpx.RequestError("Connection failed")
 
-    # Monkeypatch the AsyncClient.get method
     monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
 
     with pytest.raises(AuthServiceUnavailable):
@@ -90,18 +82,21 @@ async def test_validate_token_unreachable(monkeypatch):
 
 
 # ---------------------------------------------------------------------
-# ⚠️ Test: Malformed JSON (invalid body on 200)
+# ⚠️ Malformed JSON
 # ---------------------------------------------------------------------
-async def test_validate_token_malformed_json(httpx_mock):
-    """
-    Simulate a 200 OK but with invalid JSON body.
-    """
-    httpx_mock.add_response(
-        method="GET",
-        url="https://dummy-auth.com/api/whoami/",
-        text="not-a-json-response",
-        status_code=200,
-    )
+async def test_validate_token_malformed_json(monkeypatch):
+    """Simulate a 200 OK but invalid JSON body."""
+
+    class MockResponse:
+        status_code = 200
+
+        def json(self):
+            raise ValueError("Invalid JSON")
+
+    async def mock_get(self, url, headers):
+        return MockResponse()
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", mock_get)
 
     with pytest.raises(AuthServiceUnavailable):
         await validate_token("valid.token")

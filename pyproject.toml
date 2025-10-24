@@ -17,3 +17,7 @@ dependencies = [
 
 [tool.setuptools]
 packages = ["gait_integration"]
+
+# ✅ Add this section
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
