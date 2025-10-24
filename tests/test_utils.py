@@ -3,7 +3,7 @@
 
 # to run activate venv in path:
 # (gait_int_venv) \auth_integration> 
-# pytest -v -s tests/test_permissions.py
+# pytest -v -s tests/test_utils.py
 
 import pytest
 from types import SimpleNamespace

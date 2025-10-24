@@ -1,6 +1,11 @@
 # ✅ New Code
 # Filename: tests/test_settings.py
 
+# to run activate venv in path:
+# (gait_int_venv) \auth_integration> 
+# pytest -v -s tests/test_settings.py
+
+
 import os
 import importlib
 import pytest
