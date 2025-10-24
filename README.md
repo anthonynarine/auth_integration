@@ -88,9 +88,6 @@ for authorization checks.
 ## Testing
 
 Refer to `TESTING_GUIDE.md` for details on the unit and integration test coverage.
-
-## Testing [![Tests](https://github.com/anthonynarine/gait_integration/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/anthonynarine/gait_integration/actions/workflows/python-tests.yml)
-
 ---
 
 ## Maintainer
