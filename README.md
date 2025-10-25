@@ -1,6 +1,5 @@
 # auth_integration
 
-(https://github.com/anthonynarine/Lumen_Authentication/actions/workflows/python-tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Version](https://img.shields.io/badge/version-0.2.2-green.svg)](https://github.com/anthonynarine/Lumen_Authentication/releases)
@@ -21,7 +20,7 @@ delegate authentication and identity management to a single authoritative Auth A
 ### Using pip
 
 ```bash
-pip install git+https://github.com/anthonynarine/auth_integration.git
+pip install git+https://github.com/anthonynarine/auth_integration.git@v0.2.2
 ```
 
 ### Requirements
