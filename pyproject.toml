@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auth_integration"
-version = "0.2.4"
+version = "0.2.5"
 description = "Reusable authentication and permissions package for Django projects using an external Auth API (Gait)"
 authors = [
     { name = "Anthony Narine", email = "you@example.com" }
