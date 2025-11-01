@@ -9,7 +9,7 @@ from importlib.util import find_spec
 
 from .client import validate_token, get_claims
 
-__version__ = "0.3.5"
+__version__ = "0.3.6"
 
 # ---------------------------------------------------------------------
 # Permissions Import

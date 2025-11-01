@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+
+# to run  cd /path/to/auth_integration
+# ./bump_version.sh
+
 set -euo pipefail
 
 NEW_VERSION=${1:-}
