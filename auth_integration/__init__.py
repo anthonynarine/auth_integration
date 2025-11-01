@@ -5,16 +5,32 @@ Cross-framework authentication integration for Django + FastAPI.
 
 Exports:
     • validate_token  → direct token validation helper
-    • ExternalJWTAuth → main authentication class for API integration
-    • get_claims      → dependency for extracting JWT claims
+    • ExternalJWTAuth → core class for JWT validation
+    • get_claims      → FastAPI dependency
     • require_role    → role-based access dependency
 """
 
+import importlib
+
+# Try to import the shared client + permissions
 from .client import validate_token, get_claims
-from .authentication import ExternalJWTAuth
 from .permissions import require_role
 
-__version__ = "0.2.7"
+# Dynamically detect whether Django or FastAPI is in use
+try:
+    authentication = importlib.import_module("auth_integration.django.authentication")
+except ModuleNotFoundError:
+    try:
+        authentication = importlib.import_module("auth_integration.fastapi.authentication")
+    except ModuleNotFoundError:
+        authentication = None
+
+if authentication:
+    ExternalJWTAuth = getattr(authentication, "ExternalJWTAuth")
+else:
+    ExternalJWTAuth = None
+
+__version__ = "0.2.9"
 
 __all__ = [
     "validate_token",
