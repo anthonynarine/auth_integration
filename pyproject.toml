@@ -6,19 +6,20 @@ build-backend = "setuptools.build_meta"
 name = "auth_integration"
 version = "0.3.6"
 description = "Reusable authentication and permissions package for Django + FastAPI projects using an external Auth API (Gait)."
+readme = "README.md"
+requires-python = ">=3.9"
+
 authors = [
     { name = "Anthony Narine", email = "you@example.com" }
 ]
+
 dependencies = [
     "requests >=2.31.0",
     "python-decouple >=3.6",
     "PyJWT >=2.10.1"
 ]
-readme = "README.md"
-requires-python = ">=3.9"
 
 [tool.setuptools.packages.find]
-# ✅ This ensures subpackages like auth_integration.django and auth_integration.fastapi are included
 include = ["auth_integration*", "auth_integration.*"]
 
 [tool.setuptools]
