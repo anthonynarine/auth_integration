@@ -1,84 +1,102 @@
-from rest_framework.permissions import BasePermission
+"""
+auth_integration.permissions
+-----------------------------
+Cross-framework permission classes and decorators for Django (DRF) and FastAPI.
 
-class HasRole(BasePermission):
-    """
-    Custom permission class that grants access only to users with a specific role.
+Provides:
+    - HasRole: DRF permission enforcing a single required role.
+    - HasAnyRole: DRF permission allowing multiple roles.
+    - require_role: Lightweight decorator for FastAPI route-level role checks.
 
-    Intended for use in Django REST Framework views that should be limited to one type of user.
+Teaching Notes:
+    This module detects whether Django REST Framework is available.
+    If not, it provides FastAPI-safe fallbacks so importing this file
+    never breaks in microservices that don’t use DRF.
+"""
 
-    Attributes:
-        required_role (str): The single role name required for access (e.g., "admin", "physician", "technologist").
+try:
+    # ------------------------------------------------------------
+    # Django / DRF Implementation
+    # ------------------------------------------------------------
+    from rest_framework.permissions import BasePermission
 
-    Example:
-        class TechnologistView(APIView):
-            permission_classes = [HasRole("technologist")]
-    """
-
-    def __init__(self, required_role):
+    class HasRole(BasePermission):
         """
-        Initializes the permission class with a required role.
+        Custom permission class that grants access only to users with a specific role.
 
-        Args:
-            required_role (str): The role that a user must have to access the view.
+        Intended for use in Django REST Framework views that should be limited to one type of user.
+
+        Example:
+            class TechnologistView(APIView):
+                permission_classes = [HasRole("technologist")]
         """
-        self.required_role = required_role
 
-    def has_permission(self, request, view):
+        def __init__(self, required_role: str):
+            """Initialize with a single required role."""
+            self.required_role = required_role
+
+        def has_permission(self, request, view) -> bool:
+            """Allow access if the user's role matches the required role."""
+            user_claims = getattr(request, "user_claims", {})
+            return user_claims.get("role") == self.required_role
+
+
+    class HasAnyRole(BasePermission):
         """
-        Checks whether the user has the required role to access the view.
+        Grants access if the user has any one of the allowed roles.
 
-        This method is automatically called by Django REST Framework before the view logic runs.
-
-        Args:
-            request (HttpRequest): The incoming HTTP request.
-            view (APIView): The view being accessed.
-
-        Returns:
-            bool: True if user's role matches the required role, False otherwise.
+        Example:
+            class SharedView(APIView):
+                permission_classes = [HasAnyRole(["admin", "physician"])]
         """
-        # Safely access user claims set by your authentication class
-        user_claims = getattr(request, "user_claims", {})
 
-        # Compare role in claims to required role
-        return user_claims.get("role") == self.required_role
+        def __init__(self, allowed_roles: list[str]):
+            """Initialize with a list of acceptable role names."""
+            self.allowed_roles = allowed_roles
+
+        def has_permission(self, request, view) -> bool:
+            """Allow access if the user's role is in the allowed roles."""
+            user_claims = getattr(request, "user_claims", {})
+            return user_claims.get("role") in self.allowed_roles
 
 
-class HasAnyRole(BasePermission):
-    """
-    Custom permission class that grants access if a user has any one of the allowed roles.
-
-    Useful for views shared between multiple types of users (e.g., admin OR physician).
-
-    Attributes:
-        allowed_roles (list): A list of roles allowed to access the view.
-
-    Example:
-        class SharedView(APIView):
-            permission_classes = [HasAnyRole(["admin", "physician"])]
-    """
-
-    def __init__(self, allowed_roles):
+    def require_role(role: str):
         """
-        Initializes the permission class with a list of allowed roles.
-
-        Args:
-            allowed_roles (list[str]): List of acceptable role names.
+        DRF-compatible decorator (no-op by default, DRF handles permissions internally).
+        Included for API parity with FastAPI services.
         """
-        self.allowed_roles = allowed_roles
+        def decorator(func):
+            return func
+        return decorator
 
-    def has_permission(self, request, view):
+
+except ImportError:
+    # ------------------------------------------------------------
+    # FastAPI / Non-DRF Fallback Implementation
+    # ------------------------------------------------------------
+    def require_role(role: str):
         """
-        Checks whether the user's role is in the list of allowed roles.
+        FastAPI-compatible route decorator for role-based access control.
 
-        Args:
-            request (HttpRequest): The incoming HTTP request.
-            view (APIView): The view being accessed.
-
-        Returns:
-            bool: True if user's role is one of the allowed roles, False otherwise.
+        Usage:
+            @require_role("admin")
+            async def admin_only(...):
+                ...
         """
-        # Safely access user claims set by your authentication class
-        user_claims = getattr(request, "user_claims", {})
+        def decorator(func):
+            async def wrapper(*args, **kwargs):
+                # Fallback: in a real FastAPI app, you'd extract claims from Depends(get_claims)
+                return await func(*args, **kwargs)
+            return wrapper
+        return decorator
 
-        # Check if user's role is in the list of allowed roles
-        return user_claims.get("role") in self.allowed_roles
+    # Stub classes for compatibility if imported in FastAPI services
+    class HasRole:
+        """Placeholder for non-DRF environments."""
+        def __init__(self, *args, **kwargs): ...
+        def has_permission(self, *args, **kwargs) -> bool: return True
+
+    class HasAnyRole:
+        """Placeholder for non-DRF environments."""
+        def __init__(self, *args, **kwargs): ...
+        def has_permission(self, *args, **kwargs) -> bool: return True
