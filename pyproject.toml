@@ -1,11 +1,11 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "auth_integration"
-version = "0.3.3"
-description = "Reusable authentication and permissions package for Django projects using an external Auth API (Gait)"
+version = "0.3.4"
+description = "Reusable authentication and permissions package for Django + FastAPI projects using an external Auth API (Gait)."
 authors = [
     { name = "Anthony Narine", email = "you@example.com" }
 ]
@@ -14,10 +14,15 @@ dependencies = [
     "python-decouple >=3.6",
     "PyJWT >=2.10.1"
 ]
+readme = "README.md"
+requires-python = ">=3.9"
+
+[tool.setuptools.packages.find]
+# ✅ This ensures subpackages like auth_integration.django and auth_integration.fastapi are included
+include = ["auth_integration*", "auth_integration.*"]
 
 [tool.setuptools]
-packages = ["auth_integration"]
+include-package-data = true
 
-# ✅ Add this section
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
