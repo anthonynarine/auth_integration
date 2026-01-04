@@ -1,48 +1,63 @@
+# Filename: auth_integration/django/authentication.py
 """
 auth_integration.django.authentication — DRF Adapter
 ====================================================
 
 Purpose:
 --------
-Django REST Framework (DRF) authentication backend that validates an incoming
-request against the centralized Gait Auth API. It supports:
+Django REST Framework (DRF) authentication backend that validates requests
+against the centralized Gait Auth API (/whoami/).
 
+Modes:
+------
 1) DEV/Bearer Mode:
-   - Reads "Authorization: Bearer <token>" from headers.
-   - Uses the shared async validator `validate_token()` (httpx) to call `/whoami/`.
+   - Reads "Authorization: Bearer <token>".
+   - Validates via shared async validator `validate_token(token)`.
 
-2) PROD/Cookie Mode (HttpOnly cookies):
-   - If no Bearer header is present, forwards request.COOKIES directly to Gait
-     for `/whoami/` validation via an async httpx call from this adapter.
+2) PROD/Cookie Mode:
+   - If no Bearer token is present, forwards request.COOKIES to Gait /whoami/.
 
-On success, attaches `request.user_claims` and returns `(AnonymousUser(), None)`.
+On success:
+-----------
+- Attaches `request.user_claims` (dict)
+- Returns a lightweight authenticated `ClaimsUser` object for DRF permission checks.
 
-Security:
----------
-- Never logs tokens or PHI.
-- Logs only high-level validation events and HTTP codes.
+Security & Privacy:
+-------------------
+- Never logs tokens or cookies.
+- Treats malformed claim payloads as auth failures (fail closed).
+- Keeps cache keys hashed (sha256(token)) — never stores raw tokens.
+
+Performance:
+------------
+- Optional short TTL cache for Bearer validations to reduce /whoami/ calls.
 
 Teaching Notes:
 ---------------
-- This class is sync (DRF), but it safely bridges into async using
-  `asgiref.sync.async_to_sync(...)` so we can re-use the async validator.
+- DRF authentication backends are sync; we bridge async calls using `async_to_sync`.
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
-from typing import TypedDict, Literal, Optional
+import time
+from dataclasses import dataclass
+from typing import Literal, Optional, TypedDict, cast
 
 import httpx
-from django.contrib.auth.models import AnonymousUser
-from rest_framework.authentication import BaseAuthentication
-from rest_framework.exceptions import AuthenticationFailed
-
 from asgiref.sync import async_to_sync
+from rest_framework.authentication import BaseAuthentication
+from rest_framework.exceptions import APIException, AuthenticationFailed
 
-from auth_integration.settings import GAIT_AUTH_URL, GAIT_TIMEOUT
-from auth_integration.exceptions import InvalidTokenError, AuthServiceUnavailable
 from auth_integration.client import validate_token  # async validator
+from auth_integration.exceptions import AuthServiceUnavailable, InvalidTokenError
+from auth_integration.settings import GAIT_AUTH_URL, GAIT_TIMEOUT
+
+# -----------------------------------------------------------------------------
+# ⚙️ Logger (HIPAA-safe)
+# -----------------------------------------------------------------------------
+logger = logging.getLogger("auth_integration.django.authentication")
 
 
 # -----------------------------------------------------------------------------
@@ -57,125 +72,210 @@ class UserClaims(TypedDict):
 
 
 # -----------------------------------------------------------------------------
-# ⚙️ Logger (HIPAA-safe)
+# ✅ Claims-backed "User" for DRF
 # -----------------------------------------------------------------------------
-logger = logging.getLogger("auth_integration.django.authentication")
-logger.setLevel(logging.INFO)
+@dataclass(frozen=True)
+class ClaimsUser:
+    """Lightweight authenticated user backed by validated claims."""
+
+    id: str
+    email: str
+    role: Literal["admin", "physician", "technologist"]
+    first_name: str
+    last_name: str
+
+    @property
+    def is_authenticated(self) -> bool:
+        return True
+
+    @property
+    def is_anonymous(self) -> bool:
+        return False
+
+    def get_full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}".strip()
+
+    def __str__(self) -> str:
+        label = self.email or self.id
+        return f"{label} ({self.role})"
+
+
+# -----------------------------------------------------------------------------
+# 🧯 DRF Exception for upstream auth outage
+# -----------------------------------------------------------------------------
+class AuthenticationServiceUnavailable(APIException):
+    """Raised when the upstream Auth API is unreachable or misconfigured."""
+
+    status_code = 503
+    default_detail = "Authentication service unavailable."
+    default_code = "auth_service_unavailable"
+
+
+# -----------------------------------------------------------------------------
+# 🚀 Tiny in-process TTL cache for Bearer validations (speed win)
+# -----------------------------------------------------------------------------
+# Key: sha256(token), Value: (expires_at_epoch, claims_dict)
+_BEARER_CACHE: dict[str, tuple[float, UserClaims]] = {}
+_BEARER_CACHE_MAX = 2048
+_BEARER_CACHE_TTL_SECONDS = 45
+
+
+def _hash_token(token: str) -> str:
+    """Hash token for cache keying without storing the raw token."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _cache_get(token: str) -> Optional[UserClaims]:
+    """# Step 1: Return cached claims if present and not expired."""
+    now = time.time()
+    key = _hash_token(token)
+    item = _BEARER_CACHE.get(key)
+    if not item:
+        return None
+
+    expires_at, claims = item
+    if expires_at <= now:
+        _BEARER_CACHE.pop(key, None)
+        return None
+
+    return claims
+
+
+def _cache_set(token: str, claims: UserClaims) -> None:
+    """# Step 2: Store claims in cache with TTL; evict oldest opportunistically."""
+    if _BEARER_CACHE_MAX <= 0 or _BEARER_CACHE_TTL_SECONDS <= 0:
+        return
+
+    if len(_BEARER_CACHE) >= _BEARER_CACHE_MAX:
+        # Evict one arbitrary item (simple + fast). For LRU, add dependency later.
+        _BEARER_CACHE.pop(next(iter(_BEARER_CACHE)), None)
+
+    key = _hash_token(token)
+    _BEARER_CACHE[key] = (time.time() + _BEARER_CACHE_TTL_SECONDS, claims)
 
 
 # -----------------------------------------------------------------------------
 # 🔧 Helpers
 # -----------------------------------------------------------------------------
 def _extract_bearer_token(request) -> Optional[str]:
-    """
-    Extract a raw JWT from the Authorization header (if present).
-
-    Returns:
-        Optional[str]: The token string without the "Bearer " prefix, or None.
-    """
-    auth_header = request.headers.get("Authorization") or request.META.get("HTTP_AUTHORIZATION")
+    """Extract token from Authorization header if present."""
+    auth_header = request.headers.get("Authorization") or request.META.get(
+        "HTTP_AUTHORIZATION"
+    )
     if not auth_header:
         return None
 
-    # Accept "Bearer <token>" (case-insensitive prefix)
     parts = auth_header.split(" ", 1)
     if len(parts) == 2 and parts[0].lower() == "bearer":
-        return parts[1].strip()
+        token = parts[1].strip()
+        return token or None
 
     return None
 
 
-async def _validate_with_cookies(cookies: dict) -> UserClaims:
-    """
-    Validate the session by forwarding HttpOnly cookies to the Gait /whoami/.
-
-    This is used in PROD when the frontend does not expose the token and relies on cookies.
+def _validate_claims_shape(raw: object) -> UserClaims:
+    """# Step 3: Validate the claim payload shape (fail closed).
 
     Args:
-        cookies (dict): Django request.COOKIES (forwarded as-is).
+        raw: The parsed JSON object returned by Gait.
 
     Returns:
-        UserClaims: Validated claims.
+        UserClaims: A validated claims dict.
 
     Raises:
-        InvalidTokenError: If Gait returns 401.
-        AuthServiceUnavailable: If Gait is unreachable or misconfigured.
+        AuthenticationFailed: If payload is missing required keys.
     """
+    if not isinstance(raw, dict):
+        raise AuthenticationFailed("Invalid authentication response.")
+
+    required = ("id", "email", "role", "first_name", "last_name")
+    for key in required:
+        if key not in raw:
+            raise AuthenticationFailed("Invalid authentication response.")
+
+    role = raw.get("role")
+    if role not in ("admin", "physician", "technologist"):
+        raise AuthenticationFailed("Invalid authentication response.")
+
+    return cast(UserClaims, raw)
+
+
+async def _validate_with_cookies(cookies: dict) -> UserClaims:
+    """Validate session by forwarding HttpOnly cookies to Gait /whoami/."""
     if not GAIT_AUTH_URL:
-        logger.error("Missing GAIT_AUTH_URL — cannot validate cookies.")
-        raise AuthServiceUnavailable("Authentication service misconfigured.")
+        raise AuthServiceUnavailable("Missing GAIT_AUTH_URL.")
 
     url = f"{GAIT_AUTH_URL.rstrip('/')}/whoami/"
-    logger.info("Validating session via cookies at /whoami/ (no PHI logged).")
 
     try:
         async with httpx.AsyncClient(timeout=GAIT_TIMEOUT) as client:
             resp = await client.get(url, cookies=cookies)
     except httpx.RequestError:
-        logger.error("Auth API unreachable while validating cookies.")
-        raise AuthServiceUnavailable()
+        raise AuthServiceUnavailable("Auth API unreachable.")
 
     if resp.status_code == 200:
         try:
-            return resp.json()  # type: ignore[return-value]
-        except Exception:
-            logger.error("Malformed JSON from Auth API during cookie validation.")
-            raise AuthServiceUnavailable("Malformed response from authentication service.")
+            return _validate_claims_shape(resp.json())
+        except ValueError:
+            raise AuthServiceUnavailable("Malformed JSON from auth service.")
 
     if resp.status_code == 401:
-        logger.warning("Cookie-based validation failed with 401.")
         raise InvalidTokenError("Invalid or expired session.")
 
-    logger.error("Unexpected status from Auth API during cookie validation: %s", resp.status_code)
-    raise AuthServiceUnavailable(f"Unexpected response: {resp.status_code}")
+    raise AuthServiceUnavailable(f"Unexpected auth response: {resp.status_code}")
 
 
 # -----------------------------------------------------------------------------
 # 🔐 DRF Authentication Class
 # -----------------------------------------------------------------------------
 class ExternalJWTAuthentication(BaseAuthentication):
-    """
-    DRF authentication backend delegating JWT/session validation to Gait Auth API.
+    """DRF auth backend delegating validation to Gait Auth API."""
 
-    DEV (Bearer):
-        - Reads Authorization header (Bearer).
-        - Uses shared async validator: validate_token(token).
-
-    PROD (HttpOnly cookies):
-        - If no Bearer present, forwards request.COOKIES to Gait /whoami/ via async httpx.
-
-    On success:
-        - Attaches `request.user_claims`.
-        - Returns (AnonymousUser(), None) to indicate external identity verification.
-
-    Raises:
-        InvalidTokenError (401) or AuthServiceUnavailable (503) mapped via DRF.
-    """
+    def authenticate_header(self, request) -> str:
+        return "Bearer"
 
     def authenticate(self, request):
-        # Step 1: Try Authorization Bearer (DEV)
+        # Step 1: Determine credentials source
         token = _extract_bearer_token(request)
+        cookies = getattr(request, "COOKIES", None) or {}
 
+        # Step 2: No credentials => DRF should treat as unauthenticated (not error)
+        if not token and not cookies:
+            return None
+
+        # Step 3: Validate
         try:
             if token:
-                logger.info("Bearer token detected — validating via shared async client.")
-                # Bridge async validator into sync context safely
-                claims: UserClaims = async_to_sync(validate_token)(token)
+                # Step 3.1: Cache fast-path
+                cached = _cache_get(token)
+                if cached:
+                    claims = cached
+                else:
+                    raw_claims = async_to_sync(validate_token)(token)
+                    claims = _validate_claims_shape(raw_claims)
+                    _cache_set(token, claims)
             else:
-                # Step 2: Cookie mode (PROD with HttpOnly cookies)
-                logger.info("No Bearer token — attempting cookie-based validation.")
-                claims = async_to_sync(_validate_with_cookies)(request.COOKIES)
+                claims = async_to_sync(_validate_with_cookies)(cookies)
 
         except InvalidTokenError as e:
-            # DRF expects AuthenticationFailed for 401
             raise AuthenticationFailed(str(e))  # 401
         except AuthServiceUnavailable as e:
-            # Map to DRF exception; HTTP 503 upstream via exception handler
-            raise AuthenticationFailed(str(e))  # Keep as 401 for DRF default handling
+            raise AuthenticationServiceUnavailable(str(e))  # 503
+        except AuthenticationFailed:
+            # Pass-through (already a 401)
+            raise
         except Exception as e:
-            logger.error("Unexpected error during authentication: %s", e.__class__.__name__)
-            raise AuthenticationFailed("Authentication error.")
+            logger.error("Unexpected auth error: %s", e.__class__.__name__)
+            raise AuthenticationFailed("Authentication error.")  # 401
 
-        # Step 3: Attach claims & return placeholder user
+        # Step 4: Attach claims for RBAC & return authenticated user
         request.user_claims = claims
-        return (AnonymousUser(), None)
+        user = ClaimsUser(
+            id=claims["id"],
+            email=claims["email"],
+            role=claims["role"],
+            first_name=claims["first_name"],
+            last_name=claims["last_name"],
+        )
+
+        return (user, token)
