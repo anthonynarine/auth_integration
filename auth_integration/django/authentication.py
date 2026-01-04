@@ -54,21 +54,32 @@ from auth_integration.client import validate_token  # async validator
 from auth_integration.exceptions import AuthServiceUnavailable, InvalidTokenError
 from auth_integration.settings import GAIT_AUTH_URL, GAIT_TIMEOUT
 
+
 # -----------------------------------------------------------------------------
 # ⚙️ Logger (HIPAA-safe)
 # -----------------------------------------------------------------------------
 logger = logging.getLogger("auth_integration.django.authentication")
 
+# -----------------------------------------------------------------------------
+# 🍪 Cookie whitelist (must match Gait)
+# -----------------------------------------------------------------------------
+# ✅ New Code: Only these cookies should trigger cookie-mode validation.
+AUTH_COOKIE_KEYS: set[str] = {"access_token", "refresh_token", "temp_token"}
 
 # -----------------------------------------------------------------------------
 # 🧩 Types
 # -----------------------------------------------------------------------------
-class UserClaims(TypedDict):
+class BaseUserClaims(TypedDict):
     id: str
     email: str
     role: Literal["admin", "physician", "technologist"]
     first_name: str
     last_name: str
+
+
+class UserClaims(BaseUserClaims, total=False):
+    # Optional fields that may exist in /whoami/ responses.
+    is_2fa_enabled: bool
 
 
 # -----------------------------------------------------------------------------
@@ -158,7 +169,12 @@ def _cache_set(token: str, claims: UserClaims) -> None:
 # 🔧 Helpers
 # -----------------------------------------------------------------------------
 def _extract_bearer_token(request) -> Optional[str]:
-    """Extract token from Authorization header if present."""
+    """
+    Extract a raw JWT from the Authorization header (if present).
+
+    Returns:
+        Optional[str]: The token string without the "Bearer " prefix, or None.
+    """
     auth_header = request.headers.get("Authorization") or request.META.get(
         "HTTP_AUTHORIZATION"
     )
@@ -167,10 +183,23 @@ def _extract_bearer_token(request) -> Optional[str]:
 
     parts = auth_header.split(" ", 1)
     if len(parts) == 2 and parts[0].lower() == "bearer":
-        token = parts[1].strip()
-        return token or None
+        return parts[1].strip()
 
     return None
+
+
+def _filter_auth_cookies(cookies: dict) -> dict:
+    """
+    Filter request cookies down to only auth-related keys.
+
+    Args:
+        cookies (dict): Raw request.COOKIES.
+
+    Returns:
+        dict: Only cookies relevant to authentication.
+    """
+    # Step 1: Only forward known auth cookies to Gait (lighter + safer).
+    return {k: v for k, v in cookies.items() if k in AUTH_COOKIE_KEYS}
 
 
 def _validate_claims_shape(raw: object) -> UserClaims:
@@ -201,74 +230,108 @@ def _validate_claims_shape(raw: object) -> UserClaims:
 
 
 async def _validate_with_cookies(cookies: dict) -> UserClaims:
-    """Validate session by forwarding HttpOnly cookies to Gait /whoami/."""
+    """
+    Validate the session by forwarding HttpOnly cookies to the Gait /whoami/.
+
+    Args:
+        cookies (dict): Whitelisted auth cookies only.
+
+    Returns:
+        UserClaims: Validated claims.
+
+    Raises:
+        InvalidTokenError: If Gait returns 401.
+        AuthServiceUnavailable: If Gait is unreachable or misconfigured.
+    """
     if not GAIT_AUTH_URL:
-        raise AuthServiceUnavailable("Missing GAIT_AUTH_URL.")
+        logger.error("Missing GAIT_AUTH_URL — cannot validate cookies.")
+        raise AuthServiceUnavailable("Authentication service misconfigured.")
 
     url = f"{GAIT_AUTH_URL.rstrip('/')}/whoami/"
+    logger.info("Validating session via cookies at /whoami/ (no PHI logged).")
 
     try:
         async with httpx.AsyncClient(timeout=GAIT_TIMEOUT) as client:
             resp = await client.get(url, cookies=cookies)
     except httpx.RequestError:
-        raise AuthServiceUnavailable("Auth API unreachable.")
+        logger.error("Auth API unreachable while validating cookies.")
+        raise AuthServiceUnavailable("Authentication service unreachable.")
 
     if resp.status_code == 200:
         try:
-            return _validate_claims_shape(resp.json())
-        except ValueError:
-            raise AuthServiceUnavailable("Malformed JSON from auth service.")
+            raw = resp.json()
+            return _validate_claims_shape(raw)
+        except AuthenticationFailed:
+            raise
+        except Exception:
+            logger.error("Malformed JSON from Auth API during cookie validation.")
+            raise AuthServiceUnavailable("Malformed response from authentication service.")
 
     if resp.status_code == 401:
+        logger.warning("Cookie-based validation failed with 401.")
         raise InvalidTokenError("Invalid or expired session.")
 
-    raise AuthServiceUnavailable(f"Unexpected auth response: {resp.status_code}")
+    logger.error(
+        "Unexpected status from Auth API during cookie validation: %s", resp.status_code
+    )
+    raise AuthServiceUnavailable(f"Unexpected response: {resp.status_code}")
 
 
 # -----------------------------------------------------------------------------
 # 🔐 DRF Authentication Class
 # -----------------------------------------------------------------------------
 class ExternalJWTAuthentication(BaseAuthentication):
-    """DRF auth backend delegating validation to Gait Auth API."""
-
-    def authenticate_header(self, request) -> str:
-        return "Bearer"
+    """
+    DRF authentication backend delegating JWT/session validation to Gait Auth API.
+    """
 
     def authenticate(self, request):
-        # Step 1: Determine credentials source
+        # Step 1: Try Authorization Bearer (DEV fallback)
         token = _extract_bearer_token(request)
-        cookies = getattr(request, "COOKIES", None) or {}
 
-        # Step 2: No credentials => DRF should treat as unauthenticated (not error)
-        if not token and not cookies:
+        # Step 2: Cookie-mode credentials exist only if auth cookies exist
+        raw_cookies = getattr(request, "COOKIES", None) or {}
+        auth_cookies = _filter_auth_cookies(raw_cookies)
+        has_auth_cookies = bool(auth_cookies)
+
+        # Step 3: No credentials (no Bearer and no auth cookies) -> DRF treats as anonymous
+        if not token and not has_auth_cookies:
             return None
 
-        # Step 3: Validate
         try:
             if token:
-                # Step 3.1: Cache fast-path
+                # Step 4: Prefer cache for Bearer validations (fast path)
                 cached = _cache_get(token)
                 if cached:
                     claims = cached
                 else:
+                    logger.info(
+                        "Bearer token detected — validating via shared async client."
+                    )
                     raw_claims = async_to_sync(validate_token)(token)
                     claims = _validate_claims_shape(raw_claims)
                     _cache_set(token, claims)
             else:
-                claims = async_to_sync(_validate_with_cookies)(cookies)
+                # Step 5: Cookie mode (PROD with HttpOnly cookies)
+                logger.info("No Bearer token — attempting cookie-based validation.")
+                claims = async_to_sync(_validate_with_cookies)(auth_cookies)
 
         except InvalidTokenError as e:
-            raise AuthenticationFailed(str(e))  # 401
+            # Step 6: Invalid/expired credentials -> 401
+            raise AuthenticationFailed(str(e))
         except AuthServiceUnavailable as e:
-            raise AuthenticationServiceUnavailable(str(e))  # 503
+            # Step 7: Upstream failure -> 503
+            raise AuthenticationServiceUnavailable(str(e))
         except AuthenticationFailed:
-            # Pass-through (already a 401)
+            # Step 8: Fail closed on malformed claim payloads
             raise
         except Exception as e:
-            logger.error("Unexpected auth error: %s", e.__class__.__name__)
-            raise AuthenticationFailed("Authentication error.")  # 401
+            logger.error(
+                "Unexpected error during authentication: %s", e.__class__.__name__
+            )
+            raise AuthenticationFailed("Authentication error.")
 
-        # Step 4: Attach claims for RBAC & return authenticated user
+        # Step 9: Attach claims & return authenticated ClaimsUser
         request.user_claims = claims
         user = ClaimsUser(
             id=claims["id"],
@@ -278,4 +341,5 @@ class ExternalJWTAuthentication(BaseAuthentication):
             last_name=claims["last_name"],
         )
 
-        return (user, token)
+        # Step 10: Put claims in request.auth (more useful than returning the raw token)
+        return (user, claims)

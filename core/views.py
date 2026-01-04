@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from auth_integration.persmissions import HasRole
+from auth_integration.permissions import HasRole
 from auth_integration.utils import get_user_id, get_user_role
 
 
