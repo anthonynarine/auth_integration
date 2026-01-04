@@ -1,19 +1,56 @@
-sequenceDiagram
-    autonumber
-    actor Tech as Technologist (Frontend)
-    participant UI as React (CarotidExamPage + Formik)
-    participant API as Axios (carotidAPI/examApi)
-    participant DRF as Lumen Reports API (DRF Views)
-    participant AUTH as ExternalJWTAuthentication (auth_integration)
-    participant GAIT as Gait Auth API (/whoami/)
-    participant DB as Postgres (Exam/Segment/Measurement)
-    participant CALC as Carotid Calculators
-    participant CONC as Conclusion Service/Builder
+```mermaid
+graph LR
+  classDef fe fill:#00c853,stroke:#0e6,stroke-width:1.5,color:#fff;
+  classDef dj fill:#2962ff,stroke:#1740a0,stroke-width:1.5,color:#fff;
+  classDef fa fill:#ffd600,stroke:#c4a000,stroke-width:1.5,color:#000;
+  classDef infra fill:#e53935,stroke:#b71c1c,stroke-width:1.5,color:#fff;
+  classDef ext fill:#616161,stroke:#424242,color:#fff;
 
-    Note over Tech,UI: Template already loads & renders worksheet UI
-    Tech->>UI: Open Carotid Exam Page
-    UI->>API: GET /api/templates/carotid/?site=mount_sinai_hospital
-    API->>DRF: GET templates endpoint
-    DRF-->>API: 200 Template JSON
-    API-->>UI: Template JSON
-    UI-->>Tech: Worksheet rendered (segments + inputs)
+  FE["🟢 React + TS Frontend (lumen_ui)<br/>(Axios, Formik, Tailwind, RAG Drawer)"]:::fe
+  Lumen["🟦 lumen_reports (Django Backend)<br/>Templates, Calculators, PDF, HL7"]:::dj
+  Gait["🟦 Gait Auth Service (Django)<br/>Internal JWT, Roles, 2FA Security Layer"]:::dj
+  AI["🟨 lumen_ai (AI Microservice) (FastAPI)<br/>LangChain RAG — Julia, Kadian, Smith"]:::fa
+  Media["🟨 lumen_media (Image Storage API) (FastAPI)<br/>Image/Cine Upload + S3 Storage"]:::fa
+  HL7["🟨 HL7 Listener (FastAPI Microservice) (FastAPI)<br/>ORM/ORU Integration"]:::fa
+  EMR["🏥 EMR (Epic/NextGen)"]:::ext
+  S3["🟥 MinIO/S3 Object Store"]:::infra
+  PG["🟥 PostgreSQL"]:::infra
+  Redis["🟥 Redis"]:::infra
+  Reverse["🟥 Nginx/Traefik Reverse Proxy"]:::infra
+
+  FE--HTTPS-->Reverse
+  Reverse-->Lumen
+  Reverse-->Media
+  Reverse-->AI
+  Reverse-->HL7
+  Reverse-->Gait
+  FE--Auth/Login-->Gait
+  Lumen--JWT Validation-->Gait
+  Lumen--AI Queries-->AI
+  Lumen--Image Links-->Media
+  Lumen--HL7 ORU Results-->HL7
+  HL7--ORM/ORU-->EMR
+  Lumen---PG
+  Lumen---Redis
+  Media--Stores-->S3
+  AI---Redis
+
+
+
+  sequenceDiagram
+  autonumber
+  actor Tech as Technologist
+  participant UI as React UI
+  participant API as Axios API
+  participant DRF as Lumen Reports API
+  participant GAIT as Gait /whoami
+
+  Tech->>UI: Open page
+  UI->>API: POST create exam
+  API->>DRF: POST /api/reports/carotid/
+  DRF->>GAIT: Validate token
+  GAIT-->>DRF: 200 claims
+  DRF-->>API: 201 exam
+  API-->>UI: examId stored
+
+```
