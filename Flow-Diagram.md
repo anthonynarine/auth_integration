@@ -37,20 +37,37 @@ graph LR
 
 
 
-  sequenceDiagram
+sequenceDiagram
   autonumber
   actor Tech as Technologist
   participant UI as React UI
   participant API as Axios API
-  participant DRF as Lumen Reports API
+  participant DRF as Lumen Reports
+  participant AUTH as auth_integration
   participant GAIT as Gait /whoami
+  participant DB as Postgres
+  participant CALC as Calculators
+  participant CONC as Conclusion Builder
 
-  Tech->>UI: Open page
+  Note over Tech,UI: Template loads & renders worksheet UI
+
+  Tech->>UI: Open Carotid Exam Page
+  UI->>API: GET template
+  API->>DRF: GET /api/templates/carotid
+  DRF-->>API: 200 template JSON
+  API-->>UI: template JSON
+
+  Tech->>UI: Click Create Exam
   UI->>API: POST create exam
-  API->>DRF: POST /api/reports/carotid/
-  DRF->>GAIT: Validate token
-  GAIT-->>DRF: 200 claims
-  DRF-->>API: 201 exam
+  API->>DRF: POST /api/reports/carotid
+  DRF->>AUTH: authenticate(request)
+  AUTH->>GAIT: GET /whoami
+  GAIT-->>AUTH: 200 claims
+  AUTH-->>DRF: ClaimsUser + request.user_claims
+  DRF->>DB: Create Exam + Segments + Measurements
+  DB-->>DRF: exam created
+  DRF-->>API: 201 exam JSON
   API-->>UI: examId stored
+
 
 ```
