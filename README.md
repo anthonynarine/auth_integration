@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-0.3.10-green.svg)](https://github.com/anthonynarine/Lumen_Authentication/releases)
+[![Version](https://img.shields.io/badge/version-0.3.11-green.svg)](https://github.com/anthonynarine/Lumen_Authentication/releases)
 
 Reusable authentication adapter for **Django REST Framework** and **FastAPI** services that delegate
 authentication to a single external Auth API (e.g., **Gait**).
@@ -57,7 +57,7 @@ In multi-service systems, you often want **one source of truth** for identity an
 ### pip (git tag install)
 
 ```bash
-pip install "auth_integration @ git+https://github.com/anthonynarine/auth_integration.git@v0.3.10"
+pip install "auth_integration @ git+https://github.com/anthonynarine/auth_integration.git@v0.3.11"
 ```
 
 ### Requirements
