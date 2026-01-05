@@ -1,3 +1,4 @@
+# Filename: auth_integration/settings.py
 """
 auth_integration.settings — Unified Configuration Loader
 ========================================================
@@ -19,18 +20,28 @@ Teaching Notes:
 - This design keeps configuration consistent across the stack.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Optional
+from urllib.parse import urlparse
 
-# Attempt to import Django settings (if running inside a Django app)
-try:
-    from django.conf import settings as django_settings
-    _is_django = True
-except ImportError:
-    _is_django = False
-
-# Always import python-decouple for FastAPI and general environment loading
 from decouple import config
+
+# Step X: Backwards-compatible flag for existing tests and callers.
+
+
+# Attempt to import Django settings (if running inside a Django app).
+# IMPORTANT: Django may be installed but not configured (no DJANGO_SETTINGS_MODULE).
+try:
+    from django.conf import settings as django_settings  # type: ignore
+
+    _has_django = True
+except Exception:  # pragma: no cover
+    django_settings = None  # type: ignore
+    _has_django = False
+
+_is_django = _has_django
 
 # -----------------------------------------------------------------------------
 # ⚙️ Logger setup (lightweight internal)
@@ -44,7 +55,7 @@ logger.setLevel(logging.INFO)
 def _get_setting(name: str, default: Optional[str] = None) -> Optional[str]:
     """
     Attempts to load a configuration variable from:
-        1. Django settings (if available)
+        1. Django settings (ONLY if configured)
         2. Environment variables (.env via python-decouple)
 
     Args:
@@ -54,20 +65,21 @@ def _get_setting(name: str, default: Optional[str] = None) -> Optional[str]:
     Returns:
         Optional[str]: The loaded value or None if unavailable.
     """
-    # Step 1: Django settings (if running under Django)
-    if _is_django and hasattr(django_settings, name):
-        value = getattr(django_settings, name)
-        logger.info(f"Loaded {name} from Django settings.")
-        return value
+    # Step 1: Django settings (only if Django is configured)
+    if _has_django and django_settings is not None and getattr(django_settings, "configured", False):
+        if hasattr(django_settings, name):
+            value = getattr(django_settings, name)
+            logger.info("Loaded %s from Django settings.", name)
+            return value
 
     # Step 2: Environment or .env file
     try:
         value = config(name, default=default)
         if value is not None:
-            logger.info(f"Loaded {name} from environment (.env).")
+            logger.info("Loaded %s from environment (.env).", name)
         return value
     except Exception:
-        logger.warning(f"{name} not found in settings or environment.")
+        logger.warning("%s not found in settings or environment.", name)
         return default
 
 
@@ -86,4 +98,6 @@ if not GAIT_AUTH_URL:
         "Set GAIT_AUTH_URL in Django settings or your .env file."
     )
 else:
-    logger.info(f"✅ GAIT_AUTH_URL loaded successfully (domain only shown): {GAIT_AUTH_URL.split('/')[2]}")
+    parsed = urlparse(GAIT_AUTH_URL)
+    domain = parsed.netloc or GAIT_AUTH_URL
+    logger.info("✅ GAIT_AUTH_URL loaded successfully (domain only shown): %s", domain)
