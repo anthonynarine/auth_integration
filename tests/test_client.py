@@ -37,6 +37,7 @@ async def test_validate_token_success(monkeypatch):
                 "role": "technologist",
                 "first_name": "Jane",
                 "last_name": "Doe",
+                "is_2fa_enabled": False,
             }
 
     async def mock_get(self, url, headers):

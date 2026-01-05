@@ -8,7 +8,7 @@
 
 import pytest
 from types import SimpleNamespace
-from auth_integration.persmissions import HasRole, HasAnyRole
+from auth_integration.permissions import HasRole, HasAnyRole
 
 
 # ---------------------------------------------------------------------
