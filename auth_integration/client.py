@@ -1,142 +1,145 @@
+# Filename: auth_integration/client.py
 """
 auth_integration.client — Unified Async JWT Validation Client
-==============================================================
+=============================================================
 
 Purpose:
 --------
-Provides a shared asynchronous client for validating JWT access tokens against
-the centralized **Gait Auth API** (`/whoami/` endpoint).
+Framework-agnostic async client for validating JWTs against the centralized
+Gait Auth API (/whoami/).
 
-Fully framework-agnostic — works with both **Django (DRF)** and **FastAPI**.
+Why this file must stay framework-agnostic:
+-------------------------------------------
+- Django-only services (like lumen_reports) must not require FastAPI installed.
+- FastAPI-specific dependency logic belongs in: auth_integration/fastapi/dependencies.py
 
-Key Features:
--------------
-- ✅ Asynchronous (uses httpx)
-- ✅ Works across Django & FastAPI
-- ✅ Optional dependency helper for FastAPI (get_claims)
-- ✅ Centralized error handling (InvalidTokenError, AuthServiceUnavailable)
-- ✅ Secure logging (never logs tokens or PHI)
-- ✅ Typed responses via `UserClaims`
+Public API:
+-----------
+- validate_token(token) -> dict
+- get_claims(authorization_header) -> dict (framework-agnostic helper)
 
-Teaching Notes:
----------------
-Think of this module as the "trusted messenger" between your backend services
-and the Gait Auth API. Its sole job is to verify whether an incoming JWT is
-valid — not to issue, refresh, or store tokens.
+Security:
+---------
+- Never logs raw tokens or PHI.
 """
 
+from __future__ import annotations
+
 import logging
+from typing import Any, Dict, Optional
+
 import httpx
-from typing import TypedDict, Literal, Dict, Any, Optional
-from fastapi import Depends, Header, HTTPException, status
 
+from auth_integration.exceptions import AuthServiceUnavailable, InvalidTokenError
 from auth_integration.settings import GAIT_AUTH_URL, GAIT_TIMEOUT
-from auth_integration.exceptions import InvalidTokenError, AuthServiceUnavailable
 
 
-# ============================================================================
-# 🧩 TypedDict — expected structure of claims returned by Auth API
-# ============================================================================
-class UserClaims(TypedDict):
-    """
-    Expected structure of the claims returned from Gait `/whoami/`.
-
-    Example:
-        {
-            "id": "user-123",
-            "email": "tech@example.com",
-            "role": "technologist",
-            "first_name": "Jane",
-            "last_name": "Doe"
-        }
-    """
-    id: str
-    email: str
-    role: Literal["admin", "physician", "technologist"]
-    first_name: str
-    last_name: str
-
-
-# ============================================================================
-# ⚙️ Module-level logger configuration
-# ============================================================================
+# -----------------------------------------------------------------------------
+# ⚙️ Logger (HIPAA-safe)
+# -----------------------------------------------------------------------------
 logger = logging.getLogger("auth_integration.client")
 logger.setLevel(logging.INFO)
 
 
-# ============================================================================
-# 🔐 Core async validator
-# ============================================================================
-async def validate_token(token: str) -> UserClaims:
+# -----------------------------------------------------------------------------
+# 🔧 Helpers
+# -----------------------------------------------------------------------------
+def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
     """
-    Validates a JWT access token by calling the Gait Auth API `/whoami/` endpoint.
+    Extract a Bearer token from an Authorization header string.
 
     Args:
-        token (str): The raw JWT access token (without "Bearer" prefix).
+        authorization (Optional[str]): e.g. "Bearer <token>"
 
     Returns:
-        UserClaims: Parsed identity claims from the Auth API.
+        Optional[str]: token if present/valid format; otherwise None.
+    """
+    # Step 1: Guard
+    if not authorization:
+        return None
+
+    # Step 2: Parse "Bearer <token>"
+    parts = authorization.split(" ", 1)
+    if len(parts) == 2 and parts[0].lower() == "bearer":
+        return parts[1].strip()
+
+    return None
+
+
+# -----------------------------------------------------------------------------
+# 🔐 Public API
+# -----------------------------------------------------------------------------
+async def validate_token(token: str) -> Dict[str, Any]:
+    """
+    Validate a JWT token via Gait Auth API (/whoami/).
+
+    Args:
+        token (str): Raw JWT from Authorization: Bearer <token>.
+
+    Returns:
+        Dict[str, Any]: Claims dict from Gait.
 
     Raises:
-        InvalidTokenError: If token is invalid, expired, or unauthorized (401).
-        AuthServiceUnavailable: If Auth API cannot be reached or returns an unexpected response.
-
-    Teaching Notes:
-        - Performs asynchronous HTTP GET call using httpx.
-        - Never log or print tokens for HIPAA and security compliance.
+        InvalidTokenError: If token is invalid/expired (401).
+        AuthServiceUnavailable: If Gait is unreachable/misconfigured/returns bad data.
     """
+    # Step 1: Validate configuration
+    if not GAIT_AUTH_URL:
+        logger.error("Missing GAIT_AUTH_URL — cannot validate token.")
+        raise AuthServiceUnavailable("Authentication service misconfigured.")
+
     url = f"{GAIT_AUTH_URL.rstrip('/')}/whoami/"
     headers = {"Authorization": f"Bearer {token}"}
 
-    logger.info(f"Validating token via {url}")  # Safe: no PHI or token content
-
+    # Step 2: Call Gait
     try:
         async with httpx.AsyncClient(timeout=GAIT_TIMEOUT) as client:
+            # NOTE: Keep this signature: tests monkeypatch AsyncClient.get(self, url, headers)
             response = await client.get(url, headers=headers)
-    except httpx.RequestError as e:
-        logger.error(f"Auth API unreachable: {e.__class__.__name__}")
-        raise AuthServiceUnavailable("Authentication service is currently unavailable.") from e
+    except httpx.RequestError:
+        logger.error("Auth API unreachable during token validation.")
+        raise AuthServiceUnavailable("Authentication service unreachable.")
 
+    # Step 3: Interpret response
     if response.status_code == 200:
         try:
-            data = response.json()
-            logger.info("✅ Token validated successfully (claims received).")
-            return data  # type: ignore
-        except Exception as e:
-            logger.error(f"Invalid JSON response: {e}")
+            claims = response.json()
+        except Exception:
+            logger.error("Malformed JSON from Auth API during token validation.")
             raise AuthServiceUnavailable("Malformed response from authentication service.")
-    elif response.status_code == 401:
-        logger.warning("Invalid or expired token received (401).")
+
+        return claims
+
+    if response.status_code == 401:
+        logger.warning("Token validation failed with 401.")
         raise InvalidTokenError("Invalid or expired token.")
-    else:
-        logger.error(f"Unexpected status {response.status_code} from Auth API.")
-        raise AuthServiceUnavailable(f"Unexpected response: {response.status_code}")
+
+    logger.error("Unexpected status %s from Auth API.", response.status_code)
+    raise AuthServiceUnavailable(f"Unexpected response: {response.status_code}")
 
 
-# ============================================================================
-# ⚡ FastAPI Dependency: Extract & validate token from Authorization header
-# ============================================================================
-async def get_claims(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
+async def get_claims(authorization: Optional[str]) -> Dict[str, Any]:
     """
-    FastAPI dependency that extracts a Bearer token from the Authorization header
-    and returns the validated user claims.
+    Framework-agnostic helper that extracts a Bearer token from an Authorization
+    header string and validates it via Gait.
 
-    Example:
-        @app.get("/whoami")
-        async def whoami(claims: dict = Depends(get_claims)):
-            return claims
+    This is NOT a FastAPI dependency (no Header/Depends/HTTPException).
+    FastAPI apps should use: auth_integration.fastapi.dependencies.verify_token
+
+    Args:
+        authorization (Optional[str]): Authorization header value.
+
+    Returns:
+        Dict[str, Any]: Validated claims.
+
+    Raises:
+        InvalidTokenError: Missing/invalid auth header OR invalid token.
+        AuthServiceUnavailable: Auth API unreachable or error response.
     """
-    if not authorization or not authorization.startswith("Bearer "):
-        logger.warning("Missing or invalid Authorization header.")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header missing or invalid.",
-        )
+    # Step 1: Extract token
+    token = _extract_bearer_token(authorization)
+    if not token:
+        raise InvalidTokenError("Authorization header missing or invalid.")
 
-    token = authorization.split("Bearer ")[1].strip()
-    try:
-        return await validate_token(token)
-    except InvalidTokenError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
-    except AuthServiceUnavailable as e:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+    # Step 2: Validate
+    return await validate_token(token)
