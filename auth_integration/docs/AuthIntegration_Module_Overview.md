@@ -3,7 +3,7 @@
 ## Overview
 The **Auth Integration** package provides a unified authentication system for Django and FastAPI services that connect to the **Gait Auth API**.
 
-It validates JWTs, extracts user claims, and enforces role-based permissions across all Lumen microservices (Reports, Media, Dubin, HL7, etc.).
+It validates JWTs and extracts user claims. **Actual current consumers**: `lumen_reports` and `lumen_ai/brain/backend` (both Django/DRF, both use `ExternalJWTAuthentication`). `lumen_media` does **not** use this package — it has its own independent FastAPI adapter (`app/core/auth_integration_fastapi.py`) that calls Gait directly. Don't assume a fix here reaches every service; check each consumer's imports before relying on that.
 
 ---
 
@@ -42,6 +42,8 @@ flowchart TD
 | `utils.py` | Helper utilities for claims & roles | All |
 | `django/authentication.py` | Authentication backend for DRF | Django |
 | `fastapi/dependencies.py` | Async dependency for route protection | FastAPI |
+| `settings.py` | Reads `GAIT_AUTH_URL` / `GAIT_TIMEOUT` from Django settings or `.env`, framework-agnostic | All |
+| `authentication.py` (top-level) | Stable public re-export of `django/authentication.py`'s `ExternalJWTAuthentication` — import from here, not the internal path | Django |
 
 ---
 

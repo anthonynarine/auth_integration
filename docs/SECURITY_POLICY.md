@@ -4,8 +4,10 @@
 
 | Version | Supported |
 |----------|------------|
-| 2.x | Yes |
-| 1.x | No |
+| 0.3.x (current) | Yes |
+| < 0.3.0 | No |
+
+Only the latest `0.3.x` release is actively supported — consumers should track the current tag/commit in their `requirements.txt` rather than pinning an old one indefinitely. See the root `README.md`'s "Releasing a new version" section for the update process.
 
 ## Reporting a Vulnerability
 

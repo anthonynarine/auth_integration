@@ -12,8 +12,8 @@ It supports **both DEV (Bearer token)** and **PROD (HttpOnly cookies)** validati
    - **PROD**: forward `request.COOKIES` to Gait
 2. Call Gait `/whoami/` to validate the session
 3. Attach `request.user_claims = {...}`
-4. Return `(AnonymousUser(), None)` for DRF compatibility
-5. Raise proper DRF exceptions on failure
+4. Return `(ClaimsUser(...), claims)` — a lightweight authenticated user backed by the validated claims, **not** `AnonymousUser`. There is no local Django `User` row at any point.
+5. Raise proper DRF exceptions on failure, with `authenticate_header()` returning `"Bearer"` so DRF reports a real `401` instead of silently downgrading to `403` (see the root `README.md`'s "Correctness guarantee" section — this was a real bug, fixed in v0.3.12)
 
 ---
 
@@ -63,7 +63,9 @@ AUTH_API_URL = "https://ant-django-auth-62cf01255868.herokuapp.com/api"
 # views.py
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from auth_integration.django.authentication import ExternalJWTAuthentication
+# Import from the stable public path, not this internal module directly —
+# auth_integration.authentication re-exports the same class and survives refactors.
+from auth_integration.authentication import ExternalJWTAuthentication
 
 class WhoAmIView(APIView):
     authentication_classes = [ExternalJWTAuthentication]
@@ -77,7 +79,7 @@ class WhoAmIView(APIView):
 ## 🔐 Security Notes
 - Never logs tokens or PHI.
 - Only logs high-level validation states and HTTP status codes.
-- Returns DRF-native errors: `InvalidTokenError (401)` and `AuthServiceUnavailable (503)`.
+- Returns DRF-native errors: `AuthenticationFailed (401)` and `AuthServiceUnavailable (503)` — always a real 401 for auth failures as of v0.3.12, thanks to `authenticate_header()`. Before that, DRF silently rewrote it to 403.
 
 ---
 

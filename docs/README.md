@@ -1,97 +1,21 @@
-# auth_integration
+# docs/ index
 
-## Overview
-`auth_integration` is a reusable authentication integration layer for Django and FastAPI services.
-It provides a unified mechanism for validating JWT tokens against an external authentication
-provider, such as the Gait Auth API, and for enforcing role‑based permissions.
+The root [`README.md`](../README.md) is the canonical entry point — installation, quickstart (Django + FastAPI), the ecosystem diagram, the 401-vs-403 correctness guarantee, and the release process all live there. This directory holds deeper/narrower references:
 
-The package is designed for multi‑service environments where multiple backends (Django, FastAPI, or others)
-delegate authentication and identity management to a single authoritative Auth API.
+| Doc | Covers |
+|---|---|
+| [`CHANGELOG.md`](./CHANGELOG.md) | Version history. |
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md) | PR workflow and coding standards. |
+| [`SECURITY_POLICY.md`](./SECURITY_POLICY.md) | Supported versions, vulnerability reporting. |
+| [`TESTING_GUIDE.md`](./TESTING_GUIDE.md) | Test suite layout and how to run it. |
+| [`VERSION_BUMP_GUIDE.md`](./VERSION_BUMP_GUIDE.md) | Using `bump_version.sh`, and the GitHub Release step it doesn't do for you. |
+| [`RELEASE_CHECKLIST.MD`](./RELEASE_CHECKLIST.MD) | The full step-by-step release checklist. |
+| [`UPDATE_BACKENDS.md`](./UPDATE_BACKENDS.md) | Updating a consuming service (`lumen_reports`, `lumen_ai/brain/backend`) after a new release. |
 
----
+Module-level docs (what each file inside the package actually does) live next to the code: `auth_integration/docs/` and `auth_integration/django/docs/`.
 
-## Installation
-
-### Using pip
-
-```bash
-pip install git+https://github.com/anthonynarine/auth_integration.git
-```
-
-### Requirements
-
-- Python 3.10+
-- Django 4.0+ or FastAPI 0.100+
-- `requests`, `python-decouple`, and `PyJWT`
+For the full request-lifecycle trace across React, this package, and Gait — including real bugs found and fixed — see Lumen's own docs: `Lumen/docs/security/Auth_Token_Lifecycle_End_To_End.md`.
 
 ---
 
-## Configuration
-
-### Django Example
-
-In `settings.py`:
-
-```python
-AUTH_API_URL = "https://gait.example.com/api"
-
-REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-        "auth_integration.authentication.ExternalJWTAuthentication",
-    ]
-}
-```
-
-Add permission classes in your DRF views:
-
-```python
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from auth_integration.permissions import HasRole
-
-class TechOnlyView(APIView):
-    permission_classes = [HasRole("technologist")]
-
-    def get(self, request):
-        return Response({"message": f"Hello, {request.user_claims['email']}"})
-```
-
-### FastAPI Example
-
-```python
-from fastapi import FastAPI, Depends, HTTPException
-from auth_integration.client import validate_token
-
-app = FastAPI()
-
-@app.get("/secure-endpoint")
-async def secure_endpoint(token: str):
-    claims = await validate_token(token)
-    return {"user": claims}
-```
-
----
-
-## Architecture
-
-Each service delegates token validation to the central Gait Auth API:
-
-```
-Frontend → Backend (auth_integration) → Gait Auth API (/api/whoami/)
-```
-
-The backend receives user claims from Gait and attaches them to the request context
-for authorization checks.
-
----
-
-## Testing
-
-Refer to `TESTING_GUIDE.md` for details on the unit and integration test coverage.
-
----
-
-## Maintainer
-
-Maintained by **Anthony Narine**  
-© 2025 — Released under the MIT License
+Maintained by **Anthony Narine**

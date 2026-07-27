@@ -118,6 +118,23 @@ python -c "from auth_integration.client import validate_token; print('✅ import
 
 ---
 
+## ⚠️ The step this script does NOT do: creating a GitHub Release
+
+`bump_version.sh` pushes a git **tag**. That's enough to make `pip install ...@vX.Y.Z` work — but it does **not** create a GitHub **Release** (title + changelog body), which is a separate GitHub feature. Every version from `v0.3.2` onward has a real Release object, and the Releases page shows whatever the latest *Release* is, not the latest *tag*. Skip this step and the Releases page will keep showing the previous version as "latest" even though the new tag and commit both exist and work fine for installs.
+
+After running the script, also do one of:
+
+```bash
+# Via gh CLI, if installed:
+gh release create vX.Y.Z --title "Title: vX.Y.Z" --notes "One-line summary of the fix"
+
+# Or via the web UI:
+# github.com/anthonynarine/auth_integration/releases/new
+#   Tag: vX.Y.Z | Title: "Title: vX.Y.Z" | Body: the fix commit's summary line
+```
+
+---
+
 ## 🏁 Summary
 
 | Step | Command | Description |
@@ -126,6 +143,7 @@ python -c "from auth_integration.client import validate_token; print('✅ import
 | Bump version | `./bump_version.sh 0.2.4` | Updates + tags new release |
 | Verify | `git tag`, `grep version pyproject.toml` | Check new version |
 | Push manually (if needed) | `git push origin v0.2.4` | Sync tag to GitHub |
+| **Create the GitHub Release** | `gh release create v0.2.4 ...` or the web UI | **Not done by the script** — do this or the Releases page won't update |
 | Install elsewhere | `pip install git+https://github.com/anthonynarine/auth_integration.git@v0.2.4` | Use in other projects |
 
 ---
