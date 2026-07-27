@@ -343,3 +343,20 @@ class ExternalJWTAuthentication(BaseAuthentication):
 
         # Step 10: Put claims in request.auth (more useful than returning the raw token)
         return (user, claims)
+
+    def authenticate_header(self, request):
+        """
+        Advertise a WWW-Authenticate scheme so DRF returns 401 for auth failures.
+
+        Without this, DRF's default `APIView.handle_exception` rewrites
+        NotAuthenticated/AuthenticationFailed from 401 to 403 whenever no
+        authenticator provides a challenge header (see DRF's
+        `get_authenticate_header`). That silently broke every client's
+        refresh-on-401 logic: an expired/invalid Bearer token was returned as
+        403, which frontend interceptors correctly ignore (403 is also used
+        for legitimate "authenticated but not permitted" cases and must not
+        trigger a token-refresh retry). Returning a value here — any
+        non-empty string — is what tells DRF this authenticator can present
+        a real 401 challenge, so it stops downgrading the status code.
+        """
+        return "Bearer"
